@@ -461,7 +461,7 @@ wheels = [
 
 [[package]]
 name = "cmipcite"
-version = "0.1.2"
+version = "0.1.2.post1"
 source = { editable = "." }
 dependencies = [
     { name = "backports-strenum", marker = "python_full_version < '3.11'" },
