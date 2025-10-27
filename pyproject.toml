@@ -8,6 +8,8 @@ authors = [
 license = { text = "placeholder" }
 requires-python = ">=3.9"
 dependencies = [
+    "httpx>=0.28.1",
+    "pyhandle>=1.5.0",
     "typer",
 ]
 readme = "README.md"
@@ -221,6 +223,7 @@ tests-min = [
     "iniconfig==2.0.0",
     "packaging==24.2",
     "pluggy==1.5.0",
+    "pytest-regressions>=2.8.3",
 ]
 # Full test dependencies.
 tests-full = [

@@ -4,11 +4,13 @@ Command-line interface
 
 # # Do not use this here, it breaks typer's annotations
 # from __future__ import annotations
+from pathlib import Path
 from typing import Annotated, Optional
 
 import typer
 
 import cmipcite
+from cmipcite.citations import AuthorListStyle, FormatOption, get_citations
 
 app = typer.Typer()
 
@@ -39,20 +41,47 @@ def cli(
     """
 
 
-@app.command(name="say-hi")
-def say_hi_command(
-    person: Annotated[
-        str,
-        typer.Argument(help="The person to greet"),
+@app.command(name="get")
+def get(
+    in_values: Annotated[
+        list[str],
+        typer.Argument(
+            help="Tracking IDs or file paths for which to generate citations"
+        ),
     ],
+    out_path: Annotated[
+        Path | None,
+        typer.Option(
+            help="Path in which to write the output. If not provided, it is printed."
+        ),
+    ] = None,
+    format: Annotated[
+        FormatOption,
+        typer.Option(help="Format in which to retrieve the citations"),
+    ] = FormatOption.TEXT,
+    author_list_style: Annotated[
+        AuthorListStyle,
+        typer.Option(
+            help="Whether the author list should be long (all names) or short (et al.)"
+        ),
+    ] = AuthorListStyle.LONG,
 ) -> None:
     """
-    Say hi to someone
-
-    This is just an example command,
-    you will probably delete this early in your project.
+    Generate citations from CMIP files or tracking IDs
     """
-    print(f"Hi {person}")
+    citations = get_citations(
+        tracking_ids_or_paths=in_values,
+        format=format,
+        author_list_style=author_list_style,
+    )
+
+    text = "\n\n".join(citations)
+
+    if out_path is None:
+        print(text)
+    else:
+        with open(out_path, "w") as fh:
+            fh.write(text)
 
 
 if __name__ == "__main__":
