@@ -5,10 +5,15 @@ Citation support
 from __future__ import annotations
 
 import re
-from enum import StrEnum
+import sys
 
 import httpx
 from pyhandle.handleclient import RESTHandleClient
+
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from backports.strenum import StrEnum
 
 
 class AuthorListStyle(StrEnum):
