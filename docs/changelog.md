@@ -20,3 +20,9 @@ from the examples given in that link.
 -->
 
 <!-- towncrier release notes start -->
+
+## CMIP Cite v0.1.1 (2025-10-27)
+
+### 🆕 Features
+
+- Add basic `cmipcite get` command-line interface and associated Python API ([#1](https://github.com/WCRP-CMIP/cmipcite/pull/1))
