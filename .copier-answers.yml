@@ -1,0 +1,18 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v0.14.4
+_src_path: gl:openscm/copier-core-python-repository
+conda_release: false
+email: juliette-tbd@invalid.com
+include_cli: true
+name: Juliette Lavoie
+notebook_based_docs: true
+package_manager: uv
+pandas_doctests: false
+plot_dependencies: false
+project_description_short: Tool for gathering citations for CMIP data using the unique
+    id (PID) tracking service maintained by DKRZ
+project_name_human: CMIP Cite
+project_name_pip: cmipcite
+project_name_python: cmipcite
+project_url: https://github.com/WCRP-CMIP/cmipcite
+track_lock_file: true
