@@ -21,6 +21,11 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## CMIP Cite v0.1.2 (2025-10-27)
+
+No significant changes.
+
+
 ## CMIP Cite v0.1.1 (2025-10-27)
 
 ### 🆕 Features
