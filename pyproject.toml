@@ -9,8 +9,8 @@ license = { text = "placeholder" }
 requires-python = ">=3.9"
 dependencies = [
     "httpx>=0.28.1",
-    "pyhandle>=1.5.0",
-    "typer",
+    "pyhandle>=1.5.0 ; python_version < '4.0'",
+    "typer>=0.20.0",
     "backports.strenum>=1.3.1 ; python_version < '3.11'"
 ]
 readme = "README.md"
