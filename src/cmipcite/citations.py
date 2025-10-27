@@ -48,6 +48,25 @@ def get_citation_for_tracking_id(
     format: FormatOption,
     author_list_style: AuthorListStyle,
 ) -> str:
+    """
+    Get citation for tracking ID
+
+    Parameters
+    ----------
+    tracking_id
+        Tracking ID for which to get the citation
+
+    format
+        Format in which to get the citation
+
+    author_list_style
+        Style to use for the author list
+
+    Returns
+    -------
+    :
+        Citation for the given `tracking_id`
+    """
     client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     tracking_id_query = tracking_id.replace("hdl:", "")
@@ -72,7 +91,7 @@ def get_citation_for_tracking_id(
         elif author_list_style == AuthorListStyle.LONG:
             creators = "; ".join([c["name"] for c in data["creators"]])
 
-        else:
+        else:  # pragma: no cover
             raise NotImplementedError(author_list_style)
 
         citation = (
@@ -94,7 +113,7 @@ def get_citation_for_tracking_id(
             bib,
         )
 
-    else:
+    else:  # pragma: no cover
         raise NotImplementedError(format)
 
     return citation
@@ -105,6 +124,25 @@ def get_citations(
     format: FormatOption,
     author_list_style: AuthorListStyle,
 ) -> list[str]:
+    """
+    Get citations
+
+    Parameters
+    ----------
+    tracking_ids_or_paths
+        Tracking IDs or paths for which to get citations
+
+    format
+        Format in which to get the citations
+
+    author_list_style
+        Style to use for the author list
+
+    Returns
+    -------
+    :
+        Citations for the given `tracking_ids_or_paths`
+    """
     res = []
     for v in tracking_ids_or_paths:
         # TODO: add checking for and support for paths
