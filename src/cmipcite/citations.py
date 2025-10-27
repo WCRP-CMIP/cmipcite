@@ -8,7 +8,7 @@ import re
 import sys
 
 import httpx
-from pyhandle.handleclient import RESTHandleClient
+from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
