@@ -97,3 +97,13 @@ print(plaintex_citations[0])
 
 # %%
 # !cmipcite get 'hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b' --format bibtex
+
+# %% [markdown]
+# If you wish, you can save the output directly to a file.
+
+# %%
+# !cmipcite get 'hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b' --out-path demo.txt
+
+# %%
+with open("demo.txt") as fh:
+    print(fh.read())
