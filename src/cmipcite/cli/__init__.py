@@ -5,7 +5,7 @@ Command-line interface
 # # Do not use this here, it breaks typer's annotations
 # from __future__ import annotations
 from pathlib import Path
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
 
 import typer
 
@@ -50,7 +50,7 @@ def get(
         ),
     ],
     out_path: Annotated[
-        Path | None,
+        Union[Path, None],
         typer.Option(
             help="Path in which to write the output. If not provided, it is printed."
         ),
