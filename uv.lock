@@ -493,6 +493,7 @@ all-dev = [
     { name = "pytest-cov" },
     { name = "pytest-regressions" },
     { name = "ruff" },
+    { name = "setuptools" },
     { name = "tomli-w" },
     { name = "towncrier" },
 ]
@@ -501,6 +502,7 @@ dev = [
     { name = "mypy" },
     { name = "pip" },
     { name = "pre-commit" },
+    { name = "setuptools" },
     { name = "tomli-w" },
     { name = "towncrier" },
 ]
@@ -564,6 +566,7 @@ all-dev = [
     { name = "pytest-cov", specifier = "==6.0.0" },
     { name = "pytest-regressions", specifier = ">=2.8.3" },
     { name = "ruff", specifier = "==0.12.8" },
+    { name = "setuptools", specifier = "<81" },
     { name = "tomli-w", specifier = "==1.2.0" },
     { name = "towncrier", specifier = "==24.8.0" },
 ]
@@ -572,6 +575,7 @@ dev = [
     { name = "mypy", specifier = "==1.14.0" },
     { name = "pip", specifier = ">=25.3" },
     { name = "pre-commit", specifier = "==4.0.1" },
+    { name = "setuptools", specifier = "<81" },
     { name = "tomli-w", specifier = "==1.2.0" },
     { name = "towncrier", specifier = "==24.8.0" },
 ]
