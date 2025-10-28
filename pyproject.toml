@@ -1,6 +1,6 @@
 [project]
 name = "cmipcite"
-version = "0.1.3"
+version = "0.1.3.post1"
 description = "Tool for gathering citations for CMIP data using the unique id (PID) tracking service maintained by DKRZ"
 authors = [
     { name = "Juliette Lavoie", email = "juliette-tbd@invalid.com" },
