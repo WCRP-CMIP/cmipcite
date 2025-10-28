@@ -1,7 +1,7 @@
 <!--- --8<-- [start:description] -->
 # CMIP Cite
 
-Tool for gathering citations for CMIP data using the unique id (PID) tracking service maintained by DKRZ
+Tool for gathering citations for CMIP data using the unique id (PID) tracking service maintained by DKRZ.
 
 **Key info :**
 [![Docs](https://readthedocs.org/projects/cmipcite/badge/?version=latest)](https://cmipcite.readthedocs.io)
