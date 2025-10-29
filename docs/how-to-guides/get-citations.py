@@ -31,7 +31,8 @@ from cmipcite.citations import AuthorListStyle, FormatOption, get_citations
 # %% [markdown]
 # Bibtex
 #
-# A single citation for a single tracking ID can be retrieved as shown.
+# A single citation for a single tracking ID or PID can be retrieved as shown.
+# TODO: Add box to explain tracking_id vs PID.
 
 # %%
 bibtex_citations = get_citations(
