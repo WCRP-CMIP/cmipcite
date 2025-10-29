@@ -49,7 +49,7 @@ class FormatOption(StrEnum):
 
 
 def get_citation_for_id(
-    tracking_id: str,
+    input_id: str,
     format: FormatOption,
     author_list_style: AuthorListStyle,
 ) -> str:
@@ -58,7 +58,7 @@ def get_citation_for_id(
 
     Parameters
     ----------
-    tracking_id
+    input_id
         Tracking ID or PID for which to get the citation.
 
     format
@@ -74,22 +74,25 @@ def get_citation_for_id(
     """
     client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-    tracking_id_query = tracking_id.replace("hdl:", "")
+    id_query = input_id.replace("hdl:", "")
 
-    # tracking_id are associated to a file. pid are associated to a dataset.
-    ispartof = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
+    agg_lev = client.get_value_from_handle(id_query, "AGGREGATION_LEVEL")
 
     # if the input is a pid (associated to a dataset), the is_part_of is a doi.
-    if "doi" in ispartof:
-        doi = ispartof
-        version = client.get_value_from_handle(tracking_id_query, "VERSION_NUMBER")
+    if agg_lev == "DATASET":
+        doi = client.get_value_from_handle(id_query, "IS_PART_OF")
+        version = client.get_value_from_handle(id_query, "VERSION_NUMBER")
     # if the input is a tracking_id (associated to a file),
     # the is_part_of is a pid of the dataset.
     # and we need an extra step to get the doi.
-    else:
-        pid = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
+    elif agg_lev == "FILE":
+        pid = client.get_value_from_handle(id_query, "IS_PART_OF")
         doi = client.get_value_from_handle(pid, "IS_PART_OF")
         version = client.get_value_from_handle(pid, "VERSION_NUMBER")
+    else:
+        raise NotImplementedError(
+            f"The id passed has an unknown AGGREGATION_LEVEL: {agg_lev}"
+        )
 
     doi = doi.replace("doi:", "")
 
