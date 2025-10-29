@@ -66,6 +66,7 @@ def test_citations_args(
 )
 def test_types_of_id(input_id, file_regression, tmpdir):
     args = ["get", input_id]
+    args.extend(["--author-list-style", "short"])
 
     result = runner.invoke(app, args)
 
