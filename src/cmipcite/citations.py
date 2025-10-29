@@ -76,9 +76,20 @@ def get_citation_for_tracking_id(
 
     tracking_id_query = tracking_id.replace("hdl:", "")
 
-    # handle_ds = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
     version = client.get_value_from_handle(tracking_id_query, "VERSION_NUMBER")
-    doi = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
+
+    # tracking_id are associated to a file. pid are associated to a dataset.
+    ispartof = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
+
+    # if the input is a pid (associated to a dataset), the is_part_of is a doi.
+    if "doi" in ispartof:
+        doi = ispartof
+    # if the input is a tracking_id (associated to a file),
+    # the is_part_of is a pid of the dataset.
+    # and we need an extra step to get the doi.
+    else:
+        pid = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
+        doi = client.get_value_from_handle(pid, "IS_PART_OF")
 
     doi = doi.replace("doi:", "")
 
