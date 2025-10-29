@@ -70,7 +70,7 @@ def get_citation_for_id(
     Returns
     -------
     :
-        Citation for the given `tracking_id`
+        Citation for the given `tracking_id` or PID
     """
     client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
@@ -163,15 +163,15 @@ def get_citations(
     Returns
     -------
     :
-        Citations for the given `tracking_ids_or_paths`
+        Citations for the given `ids_or_paths`
     """
     res = []
     for v in ids_or_paths:
         # TODO: add checking for and support for paths
-        tracking_id = v
+        input_id = v
         res.append(
             get_citation_for_id(
-                tracking_id, format=format, author_list_style=author_list_style
+                input_id, format=format, author_list_style=author_list_style
             )
         )
 
