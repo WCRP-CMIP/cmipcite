@@ -48,18 +48,18 @@ class FormatOption(StrEnum):
     """
 
 
-def get_citation_for_tracking_id(
+def get_citation_for_id(
     tracking_id: str,
     format: FormatOption,
     author_list_style: AuthorListStyle,
 ) -> str:
     """
-    Get citation for tracking ID
+    Get citation for tracking ID or PID.
 
     Parameters
     ----------
     tracking_id
-        Tracking ID for which to get the citation
+        Tracking ID or PID for which to get the citation.
 
     format
         Format in which to get the citation
@@ -76,20 +76,20 @@ def get_citation_for_tracking_id(
 
     tracking_id_query = tracking_id.replace("hdl:", "")
 
-    version = client.get_value_from_handle(tracking_id_query, "VERSION_NUMBER")
-
     # tracking_id are associated to a file. pid are associated to a dataset.
     ispartof = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
 
     # if the input is a pid (associated to a dataset), the is_part_of is a doi.
     if "doi" in ispartof:
         doi = ispartof
+        version = client.get_value_from_handle(tracking_id_query, "VERSION_NUMBER")
     # if the input is a tracking_id (associated to a file),
     # the is_part_of is a pid of the dataset.
     # and we need an extra step to get the doi.
     else:
         pid = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
         doi = client.get_value_from_handle(pid, "IS_PART_OF")
+        version = client.get_value_from_handle(pid, "VERSION_NUMBER")
 
     doi = doi.replace("doi:", "")
 
@@ -136,7 +136,7 @@ def get_citation_for_tracking_id(
 
 
 def get_citations(
-    tracking_ids_or_paths: list[str],
+    ids_or_paths: list[str],
     format: FormatOption,
     author_list_style: AuthorListStyle,
 ) -> list[str]:
@@ -145,8 +145,11 @@ def get_citations(
 
     Parameters
     ----------
-    tracking_ids_or_paths
-        Tracking IDs or paths for which to get citations
+    ids_or_paths
+        Tracking IDs PID or paths for which to get citations.
+        Tracking ids identify files. They are found in the tracking_id attribute.
+        PIDs identify datasets (a grouping of files).
+        Paths should point to a CMIP file with a tracking_id attribute.
 
     format
         Format in which to get the citations
@@ -160,11 +163,11 @@ def get_citations(
         Citations for the given `tracking_ids_or_paths`
     """
     res = []
-    for v in tracking_ids_or_paths:
+    for v in ids_or_paths:
         # TODO: add checking for and support for paths
         tracking_id = v
         res.append(
-            get_citation_for_tracking_id(
+            get_citation_for_id(
                 tracking_id, format=format, author_list_style=author_list_style
             )
         )
