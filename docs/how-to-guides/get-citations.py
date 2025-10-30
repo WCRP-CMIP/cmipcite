@@ -30,7 +30,19 @@
 # ## Imports
 
 # %%
-from cmipcite.citations import AuthorListStyle, FormatOption, get_citations
+import traceback
+from functools import partial
+
+from cmipcite.citations import (
+    AuthorListStyle,
+    get_bibtex_citation,
+    get_citations,
+    get_text_citation,
+)
+from cmipcite.tracking_id import (
+    MultiDatasetHandlingStrategy,
+    MultipleDatasetMemberError,
+)
 
 # %% [markdown]
 # ## Python API
@@ -45,8 +57,7 @@ from cmipcite.citations import AuthorListStyle, FormatOption, get_citations
 # %%
 bibtex_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    format=FormatOption.BIBTEX,
-    author_list_style=AuthorListStyle.LONG,
+    get_citation=get_bibtex_citation,
 )
 print(f"{len(bibtex_citations)=}")
 print(bibtex_citations[0])
@@ -61,8 +72,7 @@ bibtex_citations_multi = get_citations(
         "hdl:21.14100/a31d6f22-4066-3e30-913f-501509086357",
         "hdl:21.14100/f821d2df-4b10-3afc-a17d-119b9c24ba3c",
     ],
-    format=FormatOption.BIBTEX,
-    author_list_style=AuthorListStyle.LONG,
+    get_citation=get_bibtex_citation,
 )
 print(f"Retrieved {len(bibtex_citations_multi)} citations")
 print()
@@ -74,8 +84,7 @@ print("\n\n".join(bibtex_citations_multi))
 # %%
 plaintex_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    format=FormatOption.TEXT,
-    author_list_style=AuthorListStyle.LONG,
+    get_citation=partial(get_text_citation, author_list_style=AuthorListStyle.LONG),
 )
 
 print(plaintex_citations[0])
@@ -86,8 +95,7 @@ print(plaintex_citations[0])
 # %%
 plaintex_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    format=FormatOption.TEXT,
-    author_list_style=AuthorListStyle.SHORT,
+    get_citation=partial(get_text_citation, author_list_style=AuthorListStyle.SHORT),
 )
 
 print(plaintex_citations[0])
@@ -116,3 +124,40 @@ print(plaintex_citations[0])
 # %%
 with open("demo.txt") as fh:
     print(fh.read())
+
+# %% [markdown]
+# ## Files associated with multiple datasets
+#
+# On ESGF, a file can be part of multiple datasets.
+# In such a case, the citation to use is ambiguous.
+
+# %%
+# Trying to get the citation for a dataset
+# that is part of multiple datasets gives an error.
+try:
+    get_citations(
+        ["hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750"],
+        get_citation=get_bibtex_citation,
+    )
+except MultipleDatasetMemberError:
+    traceback.print_exc(limit=0, chain=False)
+
+# %% [markdown]
+# In this case, you as the user have to specify the strategy
+# you would like to use to pick a specific dataset.
+
+# %%
+multi_member_cite = get_citations(
+    ["hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750"],
+    get_citation=get_bibtex_citation,
+    # Get the latest dataset
+    multi_dataset_handling=MultiDatasetHandlingStrategy.LATEST,
+)
+print(multi_member_cite[0])
+
+# %% [markdown]
+# The same behaviour can be specified via the CLI.
+
+# %%
+# !cmipcite get 'hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750' \
+#     --multi-dataset-handling latest
