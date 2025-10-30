@@ -22,7 +22,9 @@ runner = CliRunner()
         pytest.param("tmp.txt", "text", "long", id="outfile-text-longauthors"),
     ),
 )
-def test_citations(out_path, out_format, author_list_style, file_regression, tmpdir):
+def test_citations_args(
+    out_path, out_format, author_list_style, file_regression, tmpdir
+):
     args = ["get", "hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"]
 
     if out_path is not None:
@@ -46,5 +48,31 @@ def test_citations(out_path, out_format, author_list_style, file_regression, tmp
         suffix = out_path_full.suffix
         with open(out_path_full) as fh:
             res = fh.read()
+
+    file_regression.check(res, extension=suffix)
+
+
+@pytest.mark.parametrize(
+    "input_id",
+    (
+        pytest.param("hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b", id="pid"),
+        pytest.param(
+            "hdl:21.14100/be06a059-363d-47a4-97a2-d5253190fd15", id="tracking"
+        ),
+        pytest.param(
+            "hdl:21.14100/2e216556-472e-4d88-a414-42b0c0944d36", id="consortium"
+        ),
+    ),
+)
+def test_types_of_id(input_id, file_regression, tmpdir):
+    args = ["get", input_id]
+    args.extend(["--author-list-style", "short"])
+
+    result = runner.invoke(app, args)
+
+    assert result.exit_code == 0, result.stdout
+
+    res = result.stdout
+    suffix = ".txt"
 
     file_regression.check(res, extension=suffix)

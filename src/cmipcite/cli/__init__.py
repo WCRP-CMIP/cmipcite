@@ -46,7 +46,7 @@ def get(
     in_values: Annotated[
         list[str],
         typer.Argument(
-            help="Tracking IDs or file paths for which to generate citations"
+            help="Tracking IDs, PIDs or file paths for which to generate citations"
         ),
     ],
     out_path: Annotated[
@@ -67,10 +67,10 @@ def get(
     ] = AuthorListStyle.LONG,
 ) -> None:
     """
-    Generate citations from CMIP files or tracking IDs
+    Generate citations from CMIP files or tracking IDs or PIDs
     """
     citations = get_citations(
-        tracking_ids_or_paths=in_values,
+        ids_or_paths=in_values,
         format=format,
         author_list_style=author_list_style,
     )

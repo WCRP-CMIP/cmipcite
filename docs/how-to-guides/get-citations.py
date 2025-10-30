@@ -15,7 +15,16 @@
 # %% [markdown] editable=true slideshow={"slide_type": ""}
 # # How to get citations
 #
-# Here we show how you can get citations for CMIP data.
+# Here, we show how you can get citations for CMIP data.
+# Citation can be retrieved with the help of the Persistent IDentifiers (PIDs).
+# In the CMIP world, there are two types of PIDs:
+#   * file PID (also called tracking_id)
+#   * dataset PID (often referred to as just PID).
+# A dataset is a collection of files from a single variable sampled at a single
+# frequency from a single model running a single experiment.
+# All the datasets from a single model and a single experiment are grouped under a DOI.
+# There also exist DOIs associated to single model, but including all the experiments,
+#  but they are not used by this package.
 
 # %% [markdown]
 # ## Imports
@@ -31,7 +40,7 @@ from cmipcite.citations import AuthorListStyle, FormatOption, get_citations
 # %% [markdown]
 # Bibtex
 #
-# A single citation for a single tracking ID can be retrieved as shown.
+# A single citation for a single tracking ID or PID can be retrieved as shown.
 
 # %%
 bibtex_citations = get_citations(

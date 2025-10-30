@@ -48,18 +48,21 @@ class FormatOption(StrEnum):
     """
 
 
-def get_citation_for_tracking_id(
-    tracking_id: str,
+def get_citation_for_id(
+    input_id: str,
     format: FormatOption,
     author_list_style: AuthorListStyle,
 ) -> str:
     """
-    Get citation for tracking ID
+    Get citation for tracking ID or PID.
 
     Parameters
     ----------
-    tracking_id
-        Tracking ID for which to get the citation
+    input_id
+        Tracking_id (file PID) or dataset PID for which to get citations.
+        Tracking ids identify files. They are found in the tracking_id attribute.
+        PIDs identify datasets (a grouping of files).
+        Paths should point to a CMIP file with a tracking_id attribute.
 
     format
         Format in which to get the citation
@@ -70,15 +73,29 @@ def get_citation_for_tracking_id(
     Returns
     -------
     :
-        Citation for the given `tracking_id`
+        Citation for the given `tracking_id` or PID
     """
     client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-    tracking_id_query = tracking_id.replace("hdl:", "")
+    id_query = input_id.replace("hdl:", "")
 
-    # handle_ds = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
-    version = client.get_value_from_handle(tracking_id_query, "VERSION_NUMBER")
-    doi = client.get_value_from_handle(tracking_id_query, "IS_PART_OF")
+    agg_lev = client.get_value_from_handle(id_query, "AGGREGATION_LEVEL")
+
+    # if the input is a pid (associated to a dataset), the is_part_of is a doi.
+    if agg_lev == "DATASET":
+        doi = client.get_value_from_handle(id_query, "IS_PART_OF")
+        version = client.get_value_from_handle(id_query, "VERSION_NUMBER")
+    # if the input is a tracking_id (associated to a file),
+    # the is_part_of is a pid of the dataset.
+    # and we need an extra step to get the doi.
+    elif agg_lev == "FILE":
+        pid = client.get_value_from_handle(id_query, "IS_PART_OF")
+        doi = client.get_value_from_handle(pid, "IS_PART_OF")
+        version = client.get_value_from_handle(pid, "VERSION_NUMBER")
+    else:
+        raise NotImplementedError(
+            f"The id {input_id} has an unknown AGGREGATION_LEVEL: {agg_lev}"
+        )
 
     doi = doi.replace("doi:", "")
 
@@ -125,7 +142,7 @@ def get_citation_for_tracking_id(
 
 
 def get_citations(
-    tracking_ids_or_paths: list[str],
+    ids_or_paths: list[str],
     format: FormatOption,
     author_list_style: AuthorListStyle,
 ) -> list[str]:
@@ -134,8 +151,11 @@ def get_citations(
 
     Parameters
     ----------
-    tracking_ids_or_paths
-        Tracking IDs or paths for which to get citations
+    ids_or_paths
+        Tracking_id (file PID), dataset PID or paths for which to get citations.
+        Tracking ids identify files. They are found in the tracking_id attribute.
+        PIDs identify datasets (a grouping of files).
+        Paths should point to a CMIP file with a tracking_id attribute.
 
     format
         Format in which to get the citations
@@ -146,15 +166,26 @@ def get_citations(
     Returns
     -------
     :
-        Citations for the given `tracking_ids_or_paths`
+        Citations for the given `ids_or_paths`
+
+    Notes
+    -----
+     Citation can be retrieved with the help of the Persistent IDentifiers (PIDs).
+     In the CMIP world, there are two types of PIDs:
+       * file PID (also called tracking_id)
+       * dataset PID (often referred to as just PID).
+     A dataset is a collection of files from a single variable sampled at a single
+     frequency from a single model running a single experiment.
+     All datasets from a single model and a single experiment are grouped under a DOI.
+     There exist DOIs associated to single model, but including all the experiments,
+     but they are not used by this package.
     """
     res = []
-    for v in tracking_ids_or_paths:
+    for input_id in ids_or_paths:
         # TODO: add checking for and support for paths
-        tracking_id = v
         res.append(
-            get_citation_for_tracking_id(
-                tracking_id, format=format, author_list_style=author_list_style
+            get_citation_for_id(
+                input_id, format=format, author_list_style=author_list_style
             )
         )
 
