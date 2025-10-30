@@ -154,10 +154,12 @@ def get_citations(
     Parameters
     ----------
     ids_or_paths
-        Tracking_id (file PID), dataset PID or paths for which to get citations.
-        Tracking ids identify files. They are found in the tracking_id attribute.
-        PIDs identify datasets (a grouping of files).
-        Paths should point to a CMIP file with a tracking_id attribute.
+        Tracking id (file PID), dataset PID or paths for which to get citations.
+        Tracking ids identify files.
+        To date, they can be found
+        in the `tracking_id` global attribute of CMIP netCDF files.
+        PIDs identify datasets (a group of files).
+        Paths should point to a CMIP file with a `tracking_id` global attribute.
 
     format
         Format in which to get the citations
