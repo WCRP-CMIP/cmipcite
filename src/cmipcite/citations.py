@@ -91,7 +91,7 @@ def get_citation_for_id(
         version = client.get_value_from_handle(pid, "VERSION_NUMBER")
     else:
         raise NotImplementedError(
-            f"The id passed has an unknown AGGREGATION_LEVEL: {agg_lev}"
+            f"The id {input_id} has an unknown AGGREGATION_LEVEL: {agg_lev}"
         )
 
     doi = doi.replace("doi:", "")
@@ -166,9 +166,8 @@ def get_citations(
         Citations for the given `ids_or_paths`
     """
     res = []
-    for v in ids_or_paths:
+    for input_id in ids_or_paths:
         # TODO: add checking for and support for paths
-        input_id = v
         res.append(
             get_citation_for_id(
                 input_id, format=format, author_list_style=author_list_style
