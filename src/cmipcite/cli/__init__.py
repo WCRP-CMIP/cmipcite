@@ -7,7 +7,7 @@ Command-line interface
 import sys
 from functools import partial
 from pathlib import Path
-from typing import Annotated, Optional, Union
+from typing import Annotated, Callable, Optional, Union
 
 import typer
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
@@ -111,7 +111,9 @@ def get(  # noqa: PLR0913
     Generate citations from CMIP files or tracking IDs or PIDs
     """
     if format == FormatOption.TEXT:
-        get_citation = partial(get_text_citation, author_list_style=author_list_style)
+        get_citation: Callable[[str, str], str] = partial(
+            get_text_citation, author_list_style=author_list_style
+        )
 
     elif format == FormatOption.BIBTEX:
         get_citation = get_bibtex_citation

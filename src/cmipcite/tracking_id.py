@@ -59,7 +59,7 @@ class MultipleDatasetMemberError(KeyError):
         super().__init__(error_msg)
 
 
-def get_dataset_pids(
+def get_dataset_pids(  # type: ignore
     tracking_id: str,
     client: RESTHandleClient | None = None,
 ) -> list[str]:
@@ -86,13 +86,13 @@ def get_dataset_pids(
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     id_query = tracking_id.replace("hdl:", "")
-    pids_raw = client.get_value_from_handle(id_query, "IS_PART_OF")
+    pids_raw: str = client.get_value_from_handle(id_query, "IS_PART_OF")
     pids = pids_raw.split(";")
 
     return pids
 
 
-def get_dataset_pid(
+def get_dataset_pid(  # type: ignore
     tracking_id: str,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     client: RESTHandleClient | None = None,

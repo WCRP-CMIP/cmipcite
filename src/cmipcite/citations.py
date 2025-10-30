@@ -123,8 +123,8 @@ def get_bibtex_citation(doi: str, version: str) -> str:
 #     return tracking_id
 
 
-def get_doi_and_version(
-    in_value: str | Path,
+def get_doi_and_version(  # type: ignore
+    in_value: str,
     client: RESTHandleClient | None = None,
     # # Turn on in future PR
     # get_tracking_id_from_path: Callable[
@@ -163,10 +163,10 @@ def get_doi_and_version(
     if client is None:
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-    if isinstance(in_value, Path):
+    if Path(in_value).exists():
         # Turn on in future PR
         raise NotImplementedError
-        # tracking_id = get_tracking_id_from_path(in_value)
+        # tracking_id = get_tracking_id_from_path(Path(in_value))
         # Can get the version from the full path too if available
         # id_in_value = tracking_id.replace("hdl:", "")
         # id_is_tracking_id = True
@@ -202,8 +202,8 @@ def get_doi_and_version(
     return (doi, version)
 
 
-def get_citations(
-    ids_or_paths: list[str | Path],
+def get_citations(  # type: ignore
+    ids_or_paths: list[str],
     get_citation: Callable[[str, str], str],
     client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
