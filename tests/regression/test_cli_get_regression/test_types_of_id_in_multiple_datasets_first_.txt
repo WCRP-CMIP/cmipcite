@@ -1,0 +1,1 @@
+Good et al. (2019): MOHC UKESM1.0-LL model output prepared for CMIP6 ScenarioMIP ssp534-over. Version 20190903. Earth System Grid Federation. https://doi.org/10.22033/ESGF/CMIP6.6397.

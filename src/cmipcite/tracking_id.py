@@ -122,6 +122,12 @@ def get_dataset_pid(
     -------
     :
         `tracking_id`'s dataset PID.
+
+    Raises
+    ------
+    MultipleDatasetMemberError
+        `multi_dataset_handling` is `None` and the tracking ID
+        appears in multiple datasets.
     """
     if client is None:
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")

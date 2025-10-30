@@ -4,14 +4,27 @@ Command-line interface
 
 # # Do not use this here, it breaks typer's annotations
 # from __future__ import annotations
+import sys
+from functools import partial
 from pathlib import Path
 from typing import Annotated, Optional, Union
 
 import typer
+from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
 import cmipcite
-from cmipcite.citations import AuthorListStyle, FormatOption, get_citations
+from cmipcite.citations import (
+    AuthorListStyle,
+    get_bibtex_citation,
+    get_citations,
+    get_text_citation,
+)
+from cmipcite.tracking_id import MultiDatasetHandlingStrategy
 
+if sys.version_info >= (3, 11):
+    from enum import StrEnum
+else:
+    from backports.strenum import StrEnum
 app = typer.Typer()
 
 
@@ -41,8 +54,24 @@ def cli(
     """
 
 
+class FormatOption(StrEnum):
+    """
+    Citation format options
+    """
+
+    BIBTEX = "bibtex"
+    """
+    Bibtex format
+    """
+
+    TEXT = "text"
+    """
+    Plain text file
+    """
+
+
 @app.command(name="get")
-def get(
+def get(  # noqa: PLR0913
     in_values: Annotated[
         list[str],
         typer.Argument(
@@ -65,14 +94,38 @@ def get(
             help="Whether the author list should be long (all names) or short (et al.)"
         ),
     ] = AuthorListStyle.LONG,
+    multi_dataset_handling: Annotated[
+        Optional[MultiDatasetHandlingStrategy],
+        typer.Option(
+            help="Strategy to use when a given ID or file belongs to multiple datasets"
+        ),
+    ] = None,
+    handle_server_url: Annotated[
+        str,
+        typer.Option(
+            help="URL of the server to use for handling tracking IDs i.e. handles"
+        ),
+    ] = "http://hdl.handle.net/",
 ) -> None:
     """
     Generate citations from CMIP files or tracking IDs or PIDs
     """
+    if format == FormatOption.TEXT:
+        get_citation = partial(get_text_citation, author_list_style=author_list_style)
+
+    elif format == FormatOption.BIBTEX:
+        get_citation = get_bibtex_citation
+
+    else:
+        raise NotImplementedError(FormatOption)
+
+    client = RESTHandleClient(handle_server_url=handle_server_url)
+
     citations = get_citations(
         ids_or_paths=in_values,
-        format=format,
-        author_list_style=author_list_style,
+        get_citation=get_citation,
+        client=client,
+        multi_dataset_handling=multi_dataset_handling,
     )
 
     text = "\n\n".join(citations)
