@@ -140,8 +140,8 @@ def get_dataset_pid(
     if multi_dataset_handling is None:
         raise MultipleDatasetMemberError(tracking_id=tracking_id, pids=pids)
 
-    # Have to do more work to get metadata for these.
-    # Could imagine adding more complicated picking strategies here.
+    # Have to do more work to get metadata in this case.
+    # We could imagine adding more complicated picking strategies here.
     # For now, this is fine.
     versions = {
         client.get_value_from_handle(pid, "VERSION_NUMBER"): pid for pid in pids
