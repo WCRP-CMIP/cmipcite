@@ -81,17 +81,19 @@ def get_citation_for_id(
 
     agg_lev = client.get_value_from_handle(id_query, "AGGREGATION_LEVEL")
 
-    # if the input is a pid (associated to a dataset), the is_part_of is a doi.
     if agg_lev == "DATASET":
+        # the input is a pid (associated to a dataset), the is_part_of is a doi.
         doi = client.get_value_from_handle(id_query, "IS_PART_OF")
         version = client.get_value_from_handle(id_query, "VERSION_NUMBER")
-    # if the input is a tracking_id (associated to a file),
-    # the is_part_of is a pid of the dataset.
-    # and we need an extra step to get the doi.
+
     elif agg_lev == "FILE":
+        # the input is a tracking_id (associated to a file),
+        # the is_part_of is a pid of the dataset.
+        # and we need an extra step to get the doi.
         pid = client.get_value_from_handle(id_query, "IS_PART_OF")
         doi = client.get_value_from_handle(pid, "IS_PART_OF")
         version = client.get_value_from_handle(pid, "VERSION_NUMBER")
+
     else:
         raise NotImplementedError(
             f"The id {input_id} has an unknown AGGREGATION_LEVEL: {agg_lev}"

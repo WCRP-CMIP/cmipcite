@@ -62,6 +62,10 @@ def test_citations_args(
         pytest.param(
             "hdl:21.14100/2e216556-472e-4d88-a414-42b0c0944d36", id="consortium"
         ),
+        pytest.param(
+            "hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750",
+            id="in-multiple-datasets",
+        ),
     ),
 )
 def test_types_of_id(input_id, file_regression, tmpdir):
