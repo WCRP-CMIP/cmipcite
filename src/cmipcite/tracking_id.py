@@ -82,7 +82,7 @@ def get_dataset_pids(  # type: ignore
     :
         PID(s) of the dataset(s) with which `tracking_id` is associated
     """
-    if client is None:
+    if client is None:  # pragma: no cover
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     id_query = tracking_id.replace("hdl:", "")
@@ -152,7 +152,7 @@ def get_dataset_pid(  # type: ignore
     elif multi_dataset_handling == MultiDatasetHandlingStrategy.FIRST:
         pid_selected = versions[min(versions)]
 
-    else:
+    else:  # pragma: no cover
         raise NotImplementedError(multi_dataset_handling)
 
     return pid_selected

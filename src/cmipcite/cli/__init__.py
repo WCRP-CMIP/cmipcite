@@ -25,6 +25,7 @@ if sys.version_info >= (3, 11):
     from enum import StrEnum
 else:
     from backports.strenum import StrEnum
+
 app = typer.Typer()
 
 
@@ -118,7 +119,7 @@ def get(  # noqa: PLR0913
     elif format == FormatOption.BIBTEX:
         get_citation = get_bibtex_citation
 
-    else:
+    else:  # pragma: no cover
         raise NotImplementedError(FormatOption)
 
     client = RESTHandleClient(handle_server_url=handle_server_url)

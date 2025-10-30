@@ -160,11 +160,11 @@ def get_doi_and_version(  # type: ignore
     version :
         Version that applies to `in_value`
     """
-    if client is None:
+    if client is None:  # pragma: no cover
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-    if Path(in_value).exists():
-        # Turn on in future PR
+    if Path(in_value).exists():  # pragma: no cover
+        # Turn on in future PR and remove no cover
         raise NotImplementedError
         # tracking_id = get_tracking_id_from_path(Path(in_value))
         # Can get the version from the full path too if available
@@ -181,7 +181,7 @@ def get_doi_and_version(  # type: ignore
         elif agg_lev == "FILE":
             id_is_tracking_id = True
 
-        else:
+        else:  # pragma: no cover
             msg = f"The id {id_in_value} has an unknown AGGREGATION_LEVEL: {agg_lev}"
             raise NotImplementedError(msg)
 
@@ -262,7 +262,7 @@ def get_citations(  # type: ignore
     that include all the experiments performed by that model,
     but they are not used by this package at the moment.
     """
-    if client is None:
+    if client is None:  # pragma: no cover
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     doi_versions = [
