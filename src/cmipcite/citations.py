@@ -59,7 +59,10 @@ def get_citation_for_id(
     Parameters
     ----------
     input_id
-        Tracking ID or PID for which to get the citation.
+        Tracking_id (file PID) or dataset PID for which to get citations.
+        Tracking ids identify files. They are found in the tracking_id attribute.
+        PIDs identify datasets (a grouping of files).
+        Paths should point to a CMIP file with a tracking_id attribute.
 
     format
         Format in which to get the citation
@@ -149,7 +152,7 @@ def get_citations(
     Parameters
     ----------
     ids_or_paths
-        Tracking IDs PID or paths for which to get citations.
+        Tracking_id (file PID), dataset PID or paths for which to get citations.
         Tracking ids identify files. They are found in the tracking_id attribute.
         PIDs identify datasets (a grouping of files).
         Paths should point to a CMIP file with a tracking_id attribute.
@@ -164,6 +167,18 @@ def get_citations(
     -------
     :
         Citations for the given `ids_or_paths`
+
+    Notes
+    -----
+     Citation can be retrieved with the help of the Persistent IDentifiers (PIDs).
+     In the CMIP world, there are two types of PIDs:
+       * file PID (also called tracking_id)
+       * dataset PID (often referred to as just PID).
+     A dataset is a collection of files from a single variable sampled at a single
+     frequency from a single model running a single experiment.
+     All datasets from a single model and a single experiment are grouped under a DOI.
+     There exist DOIs associated to single model, but including all the experiments,
+     but they are not used by this package.
     """
     res = []
     for input_id in ids_or_paths:
