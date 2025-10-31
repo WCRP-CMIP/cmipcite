@@ -6,13 +6,18 @@ from __future__ import annotations
 
 import re
 import sys
+from functools import partial
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import httpx
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
-from cmipcite.tracking_id import MultiDatasetHandlingStrategy, get_dataset_pid
+from cmipcite.tracking_id import (
+    MultiDatasetHandlingStrategy,
+    MultipleDatasetMemberError,
+    get_dataset_pid,
+)
 
 if sys.version_info >= (3, 11):
     from enum import StrEnum
@@ -277,3 +282,133 @@ def get_citations(  # type: ignore
     res = [get_citation(doi, version) for doi, version in doi_versions_unique]
 
     return res
+
+
+class FormatOption(StrEnum):
+    """
+    Citation format options
+    """
+
+    BIBTEX = "bibtex"
+    """
+    Bibtex format
+    """
+
+    TEXT = "text"
+    """
+    Plain text file
+    """
+
+
+def translate_get_args_to_get_citations_kwargs(
+    format: FormatOption,
+    author_list_style: AuthorListStyle,
+    handle_server_url: str = "http://hdl.handle.net/",
+) -> dict[str, Any]:
+    """
+    Translate the arguments of [(m).get][] to arguments needed by [(m).get_citations][]
+
+    [(m).get_citations][] is a lower-level function that supports dependency injection.
+    [(m).get][] is meant to mirror the equivalent command-line interface command,
+    therefore has to work with more primitive types and does not support
+    (direct) dependency injection.
+
+    Parameters
+    ----------
+    format
+        Format in which to retrieve the citations
+
+    author_list_style
+        Whether, if the format is text,
+        the author list should be long (all names) or short (et al.)
+
+    handle_server_url
+        URL of the server to use for handling tracking IDs i.e. handles
+
+    Returns
+    -------
+    :
+        Keyword arguments which can be passed to [(m).get_citations][]
+    """
+    if format == FormatOption.TEXT:
+        get_citation: Callable[[str, str], str] = partial(
+            get_text_citation, author_list_style=author_list_style
+        )
+
+    elif format == FormatOption.BIBTEX:
+        get_citation = get_bibtex_citation
+
+    else:  # pragma: no cover
+        raise NotImplementedError(FormatOption)
+
+    client = RESTHandleClient(handle_server_url=handle_server_url)
+
+    return dict(
+        get_citation=get_citation,
+        client=client,
+    )
+
+
+def get(
+    in_values: list[str],
+    format: FormatOption = FormatOption.TEXT,
+    author_list_style: AuthorListStyle = AuthorListStyle.LONG,
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    handle_server_url: str = "http://hdl.handle.net/",
+) -> list[str]:
+    """
+    Get citations from CMIP files or tracking IDs or PIDs
+
+    This function mirrors the CLI `get` command as closely as possible.
+
+    Parameters
+    ----------
+    in_values
+        Tracking IDs, PIDs or file paths for which to generate citations
+
+    format
+        Format in which to retrieve the citations
+
+    author_list_style
+        Whether, if the format is text,
+        the author list should be long (all names) or short (et al.)
+
+    multi_dataset_handling
+        Strategy to use when a given ID or file belongs to multiple datasets
+
+    handle_server_url
+        URL of the server to use for handling tracking IDs i.e. handles
+
+    Returns
+    -------
+    :
+        Retrieved citations for `in_values`
+    """
+    get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
+        format=format,
+        author_list_style=author_list_style,
+        handle_server_url=handle_server_url,
+    )
+
+    try:
+        citations = get_citations(
+            ids_or_paths=in_values,
+            multi_dataset_handling=multi_dataset_handling,
+            **get_citations_kwargs,
+        )
+    except MultipleDatasetMemberError as exc:
+        msg = (
+            "One of your input values is a member of more than one dataset. "
+            "You can resolve this by passing a value for the "
+            "`multi_dataset_handling` argument. "
+            "In most cases, adding "
+            "`from cmipcite.tracking_id import MultiDatasetHandlingStrategy` "
+            "and then using "
+            "`multi_dataset_handling=MultiDatasetHandlingStrategy.LATEST` "
+            "is what you will want "
+            "(this will give you the reference to the last published dataset "
+            "that includes your ID)."
+        )
+        raise ValueError(msg) from exc
+
+    return citations

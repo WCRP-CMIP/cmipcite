@@ -4,27 +4,22 @@ Command-line interface
 
 # # Do not use this here, it breaks typer's annotations
 # from __future__ import annotations
-import sys
-from functools import partial
 from pathlib import Path
-from typing import Annotated, Callable, Optional, Union
+from typing import Annotated, Optional, Union
 
 import typer
-from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
 import cmipcite
 from cmipcite.citations import (
     AuthorListStyle,
-    get_bibtex_citation,
+    FormatOption,
     get_citations,
-    get_text_citation,
+    translate_get_args_to_get_citations_kwargs,
 )
-from cmipcite.tracking_id import MultiDatasetHandlingStrategy
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:
-    from backports.strenum import StrEnum
+from cmipcite.tracking_id import (
+    MultiDatasetHandlingStrategy,
+    MultipleDatasetMemberError,
+)
 
 app = typer.Typer()
 
@@ -52,22 +47,6 @@ def cli(
 ) -> None:
     """
     Entrypoint for the command-line interface
-    """
-
-
-class FormatOption(StrEnum):
-    """
-    Citation format options
-    """
-
-    BIBTEX = "bibtex"
-    """
-    Bibtex format
-    """
-
-    TEXT = "text"
-    """
-    Plain text file
     """
 
 
@@ -111,25 +90,30 @@ def get(  # noqa: PLR0913
     """
     Generate citations from CMIP files or tracking IDs or PIDs
     """
-    if format == FormatOption.TEXT:
-        get_citation: Callable[[str, str], str] = partial(
-            get_text_citation, author_list_style=author_list_style
+    get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
+        format=format,
+        author_list_style=author_list_style,
+        handle_server_url=handle_server_url,
+    )
+
+    try:
+        citations = get_citations(
+            ids_or_paths=in_values,
+            multi_dataset_handling=multi_dataset_handling,
+            **get_citations_kwargs,
         )
 
-    elif format == FormatOption.BIBTEX:
-        get_citation = get_bibtex_citation
-
-    else:  # pragma: no cover
-        raise NotImplementedError(FormatOption)
-
-    client = RESTHandleClient(handle_server_url=handle_server_url)
-
-    citations = get_citations(
-        ids_or_paths=in_values,
-        get_citation=get_citation,
-        client=client,
-        multi_dataset_handling=multi_dataset_handling,
-    )
+    except MultipleDatasetMemberError as exc:
+        msg = (
+            "One of your input values is a member of more than one dataset. "
+            "You can resolve this by passing a value for the "
+            "`--multi-dataset-handling` option. "
+            "In most cases, passing `--multi-dataset-handling latest` "
+            "is what you will want "
+            "(this will give you the reference to the last published dataset "
+            "that includes your ID)"
+        )
+        raise ValueError(msg) from exc
 
     text = "\n\n".join(citations)
 
