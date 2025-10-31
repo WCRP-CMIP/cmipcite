@@ -53,26 +53,35 @@ def test_citations_args(
 
 
 @pytest.mark.parametrize(
-    "input_id",
+    "input_id, extra_args",
     (
-        pytest.param("hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b", id="pid"),
+        pytest.param("hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b", [], id="pid"),
         pytest.param(
-            "hdl:21.14100/be06a059-363d-47a4-97a2-d5253190fd15", id="tracking"
+            "hdl:21.14100/be06a059-363d-47a4-97a2-d5253190fd15", [], id="tracking"
         ),
         pytest.param(
-            "hdl:21.14100/2e216556-472e-4d88-a414-42b0c0944d36", id="consortium"
+            "hdl:21.14100/2e216556-472e-4d88-a414-42b0c0944d36", [], id="consortium"
+        ),
+        pytest.param(
+            "hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750",
+            ["--multi-dataset-handling", "latest"],
+            id="in-multiple-datasets-latest",
+        ),
+        pytest.param(
+            "hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750",
+            ["--multi-dataset-handling", "first"],
+            id="in-multiple-datasets-first",
         ),
     ),
 )
-def test_types_of_id(input_id, file_regression, tmpdir):
-    args = ["get", input_id]
-    args.extend(["--author-list-style", "short"])
+def test_types_of_id(input_id, extra_args, file_regression, tmpdir):
+    args = ["get", input_id, "--author-list-style", "short", *extra_args]
 
     result = runner.invoke(app, args)
 
     assert result.exit_code == 0, result.stdout
 
     res = result.stdout
-    suffix = ".txt"
 
+    suffix = ".txt"
     file_regression.check(res, extension=suffix)
