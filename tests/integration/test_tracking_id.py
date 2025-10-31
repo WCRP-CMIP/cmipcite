@@ -24,9 +24,11 @@ from cmipcite.tracking_id import (
                 MultipleDatasetMemberError,
                 match=re.escape(
                     "tracking_id='hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750' "
-                    "is associated with multiple PIDs: "
-                    "['hdl:21.14100/2a375e38-5e60-3fe1-bf79-accadaed10d3', "
-                    "'hdl:21.14100/3a3497e8-759b-368d-8615-91aebcd67abd']"
+                    "is associated with multiple versions (therefore PIDs): "
+                    "20210205 "
+                    "(PID: hdl:21.14100/3a3497e8-759b-368d-8615-91aebcd67abd), "
+                    "20190903 "
+                    "(PID: hdl:21.14100/2a375e38-5e60-3fe1-bf79-accadaed10d3)"
                 ),
             ),
             id="default-no-handling-strategy-supplied",

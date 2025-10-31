@@ -43,7 +43,7 @@ class MultipleDatasetMemberError(KeyError):
     Usually only raised if no strategy for handling such a clash is given.
     """
 
-    def __init__(self, tracking_id: str, pids: list[str]) -> None:
+    def __init__(self, tracking_id: str, version_pids: dict[str, str]) -> None:
         """
         Initialise the error
 
@@ -52,10 +52,17 @@ class MultipleDatasetMemberError(KeyError):
         tracking_id
             Tracking ID
 
-        pids
-            PIDs with which `tracking_id` is associated
+        version_pids
+            Version strings and associated PIDs with which `tracking_id` is associated
         """
-        error_msg = f"{tracking_id=} is associated with multiple PIDs: {pids}"
+        version_pid_info = ", ".join(
+            f"{version} (PID: {version_pids[version]})"
+            for version in sorted(version_pids)[::-1]
+        )
+        error_msg = (
+            f"{tracking_id=} is associated with "
+            f"multiple versions (therefore PIDs): {version_pid_info}"
+        )
         super().__init__(error_msg)
 
 
@@ -137,15 +144,15 @@ def get_dataset_pid(  # type: ignore
         # Only found one, fast return
         return pids[0]
 
-    if multi_dataset_handling is None:
-        raise MultipleDatasetMemberError(tracking_id=tracking_id, pids=pids)
-
     # Have to do more work to get metadata in this case.
     # We could imagine adding more complicated picking strategies here.
     # For now, this is fine.
     versions = {
         client.get_value_from_handle(pid, "VERSION_NUMBER"): pid for pid in pids
     }
+    if multi_dataset_handling is None:
+        raise MultipleDatasetMemberError(tracking_id=tracking_id, version_pids=versions)
+
     if multi_dataset_handling == MultiDatasetHandlingStrategy.LATEST:
         pid_selected = versions[max(versions)]
 
