@@ -26,3 +26,11 @@ def test_multiple_error_message():
         ),
     ):
         get(["hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750"])
+
+
+def test_types_of_inputs(test_data_dir):
+    out_id = get(
+        ["hdl:21.14100/68510608-6587-463a-bde5-56f63d7d7a6d"],
+    )
+    out_path = get([test_data_dir / "sftlf_fx_EC-Earth3_historical_r1i1p1f1_gr.nc"])
+    assert out_id == out_path

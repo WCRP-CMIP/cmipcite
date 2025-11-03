@@ -108,6 +108,14 @@ print(plaintex_citations[0])
 # %%
 # !cmipcite get 'hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b'
 
+# %% [markdown]
+# You can also pass a path to a file instead of an id.
+# TODO: come back
+
+# %%
+# !cmipcite get XXX
+
+
 # %%
 # !cmipcite get 'hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b' \
 #   --author-list-style short

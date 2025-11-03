@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import httpx
+import netCDF4
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
 from cmipcite.tracking_id import (
@@ -38,6 +39,22 @@ class AuthorListStyle(StrEnum):
     LONG = "long"
     """
     Long i.e. list all names
+    """
+
+
+class DOILevel(StrEnum):
+    """
+    DOI level
+    """
+
+    EXPERIMENT = "experiment"
+    """
+    Experiment level DOI.
+    """
+
+    MODEL = "model"
+    """
+    Model level DOI
     """
 
 
@@ -120,21 +137,26 @@ def get_bibtex_citation(doi: str, version: str) -> str:
     return citation
 
 
-# Turn on in future PR
-# def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
-#     with netCDF4.Dataset(in_value) as ds:
-#         tracking_id = ds.getncattr("tracking_id")
-#
-#     return tracking_id
+def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
+    """
+    Get tracking ID from a CMIP netCDF file
+
+    Parameters
+    ----------
+    nc_path
+        Path to the CMIP netCDF file.
+        The file must have a `tracking_id` global attribute.
+    """
+    with netCDF4.Dataset(nc_path) as ds:
+        tracking_id = ds.getncattr("tracking_id")
+    return tracking_id
 
 
 def get_doi_and_version(  # type: ignore
     in_value: str,
+    doi_level: DOILevel,
     client: RESTHandleClient | None = None,
-    # # Turn on in future PR
-    # get_tracking_id_from_path: Callable[
-    #     [Path], str
-    # ] = get_tracking_id_from_cmip_netcdf,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
 ) -> tuple[str, str]:
     """
@@ -145,17 +167,24 @@ def get_doi_and_version(  # type: ignore
     in_value
         Input ID or path to a netCDF file
 
+    doi_level
+        Level of DOI to retrieve. Either "experiment" or "model".
+
     client
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
         is instantiated.
 
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+
     multi_dataset_handling
         What to do in the case that the tracking ID belongs to multiple datasets
         i.e. is associated with more than one PID.
 
         Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
 
     Returns
     -------
@@ -168,13 +197,10 @@ def get_doi_and_version(  # type: ignore
     if client is None:  # pragma: no cover
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-    if Path(in_value).exists():  # pragma: no cover
-        # Turn on in future PR and remove no cover
-        raise NotImplementedError
-        # tracking_id = get_tracking_id_from_path(Path(in_value))
-        # Can get the version from the full path too if available
-        # id_in_value = tracking_id.replace("hdl:", "")
-        # id_is_tracking_id = True
+    if Path(in_value).exists():
+        tracking_id = get_tracking_id_from_path(Path(in_value))
+        id_in_value = tracking_id.replace("hdl:", "")
+        id_is_tracking_id = True
 
     else:
         id_in_value = in_value.replace("hdl:", "")
@@ -202,6 +228,19 @@ def get_doi_and_version(  # type: ignore
 
     doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
     doi = doi_raw.replace("doi:", "")
+
+    if doi_level == "model":
+        # get model doi
+        r = httpx.get(
+            "https://api.datacite.org/dois/10.22033/ESGF/CMIP6.4700",
+            follow_redirects=True,
+        )
+        doi = r.raise_for_status().json()["data"]["attributes"]["container"][
+            "identifier"
+        ]
+    elif doi_level != "experiment":  # pragma: no cover
+        raise NotImplementedError(DOILevel)
+
     version = client.get_value_from_handle(pid, "VERSION_NUMBER")
 
     return (doi, version)
@@ -210,6 +249,7 @@ def get_doi_and_version(  # type: ignore
 def get_citations(  # type: ignore
     ids_or_paths: list[str],
     get_citation: Callable[[str, str], str],
+    doi_level: DOILevel,
     client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
 ) -> list[str]:
@@ -231,6 +271,9 @@ def get_citations(  # type: ignore
 
     get_citation
         Function which, given a DOI and a version, produces a citation
+
+    doi_level
+        Level of DOI to retrieve. Either "experiment" or "model".
 
     client
         Client to use for interacting with pyhandle's REST API
@@ -261,18 +304,18 @@ def get_citations(  # type: ignore
     (for CMIP, this collection of files
     is for a single variable sampled at a single frequency and spatial sampling
     from a single model running a single experiment).
-    All datasets from a single model and a single experiment
+    All datasets from a single model or from a single experiment (and model)
     are grouped under a DOI, associated with the dataset's PID.
-    There also exist DOIs associated to a single model,
-    that include all the experiments performed by that model,
-    but they are not used by this package at the moment.
     """
     if client is None:  # pragma: no cover
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     doi_versions = [
         get_doi_and_version(
-            v, client=client, multi_dataset_handling=multi_dataset_handling
+            v,
+            client=client,
+            multi_dataset_handling=multi_dataset_handling,
+            doi_level=doi_level,
         )
         for v in ids_or_paths
     ]
@@ -349,10 +392,11 @@ def translate_get_args_to_get_citations_kwargs(
     )
 
 
-def get(
+def get(  # noqa: PLR0913
     in_values: list[str],
     format: FormatOption = FormatOption.TEXT,
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
+    doi_level: DOILevel = DOILevel.MODEL,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     handle_server_url: str = "http://hdl.handle.net/",
 ) -> list[str]:
@@ -372,6 +416,8 @@ def get(
     author_list_style
         Whether, if the format is text,
         the author list should be long (all names) or short (et al.)
+    doi_level
+        Level of DOI to retrieve. Either "experiment" or "model".
 
     multi_dataset_handling
         Strategy to use when a given ID or file belongs to multiple datasets
@@ -394,6 +440,7 @@ def get(
         citations = get_citations(
             ids_or_paths=in_values,
             multi_dataset_handling=multi_dataset_handling,
+            doi_level=doi_level,
             **get_citations_kwargs,
         )
     except MultipleDatasetMemberError as exc:

@@ -35,3 +35,22 @@ def test_multiple_error_message():
         "(this will give you the reference to the last published dataset "
         "that includes your ID)"
     )
+
+
+def test_types_of_input(test_data_dir):
+    args_id = ["get", "hdl:21.14100/68510608-6587-463a-bde5-56f63d7d7a6d"]
+
+    result_id = runner.invoke(app, args_id)
+
+    assert result_id.exit_code == 0, result_id.stdout
+
+    args_path = [
+        "get",
+        str(test_data_dir / "sftlf_fx_EC-Earth3_historical_r1i1p1f1_gr.nc"),
+    ]
+
+    result_path = runner.invoke(app, args_path)
+
+    assert result_path.exit_code == 0, result_path.stdout
+
+    assert result_id.stdout == result_path.stdout
