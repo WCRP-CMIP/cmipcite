@@ -38,7 +38,7 @@ def test_multiple_error_message():
 
 
 def test_types_of_input(test_data_dir):
-    args_id = ["get", "hdl:21.14100/68510608-6587-463a-bde5-56f63d7d7a6d"]
+    args_id = ["get", "hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"]
 
     result_id = runner.invoke(app, args_id)
 
@@ -46,7 +46,7 @@ def test_types_of_input(test_data_dir):
 
     args_path = [
         "get",
-        str(test_data_dir / "sftlf_fx_EC-Earth3_historical_r1i1p1f1_gr.nc"),
+        str(test_data_dir / "sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"),
     ]
 
     result_path = runner.invoke(app, args_path)

@@ -30,7 +30,7 @@ def test_multiple_error_message():
 
 def test_types_of_inputs(test_data_dir):
     out_id = get(
-        ["hdl:21.14100/68510608-6587-463a-bde5-56f63d7d7a6d"],
+        ["hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"],
     )
-    out_path = get([test_data_dir / "sftlf_fx_EC-Earth3_historical_r1i1p1f1_gr.nc"])
+    out_path = get([test_data_dir / "sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"])
     assert out_id == out_path

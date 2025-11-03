@@ -12,6 +12,7 @@ import typer
 import cmipcite
 from cmipcite.citations import (
     AuthorListStyle,
+    DOILevel,
     FormatOption,
     get_citations,
     translate_get_args_to_get_citations_kwargs,
@@ -74,6 +75,10 @@ def get(  # noqa: PLR0913
             help="Whether the author list should be long (all names) or short (et al.)"
         ),
     ] = AuthorListStyle.LONG,
+    doi_level: Annotated[
+        DOILevel,
+        typer.Option(help="Level of the DOI (model or experiment)."),
+    ] = DOILevel.MODEL,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],
         typer.Option(
@@ -99,6 +104,7 @@ def get(  # noqa: PLR0913
     try:
         citations = get_citations(
             ids_or_paths=in_values,
+            doi_level=doi_level,
             multi_dataset_handling=multi_dataset_handling,
             **get_citations_kwargs,
         )
