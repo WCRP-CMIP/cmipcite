@@ -256,6 +256,12 @@ def get_citations(  # type: ignore
     """
     Get citations that apply to the given IDs or paths
 
+    IDs don't apply at the file level.
+    Hence, if your IDs are tracking IDs or paths,
+    then two or more IDs/paths can share the same citation.
+    This function returns the minimum set of citations required
+    i.e. any duplicate citations are removed.
+
     Parameters
     ----------
     ids_or_paths
@@ -271,6 +277,8 @@ def get_citations(  # type: ignore
 
     get_citation
         Function which, given a DOI and a version, produces a citation
+
+        For example, [get_bibtex_citation][(m).].
 
     doi_level
         Level of DOI to retrieve. Either "experiment" or "model".
@@ -306,7 +314,29 @@ def get_citations(  # type: ignore
     from a single model running a single experiment).
     All datasets from a single model or from a single experiment (and model)
     are grouped under a DOI, associated with the dataset's PID.
-    """
+    There also exist DOIs associated to a single model,
+    that include all the experiments performed by that model,
+    but they are not used by this package at the moment.
+
+    Examples
+    --------
+    >>> citations = get_citations(
+    ...     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
+    ...     get_citation=get_bibtex_citation,
+    ... )
+    >>> print(citations[0])
+    @misc{https://doi.org/10.22033/esgf/cmip6.6595,
+      doi = {10.22033/ESGF/CMIP6.6595},
+      url = {http://cera-www.dkrz.de/WDCC/meta/CMIP6/CMIP6.CMIP.MPI-M.MPI-ESM1-2-LR.historical},
+      author = {Wieners, Karl-Hermann and Giorgetta, Marco and Jungclaus, Johann and Reick, Christian and Esch, Monika and Bittner, Matthias and Legutke, Stephanie and Schupfner, Martin and Wachsmann, Fabian and Gayler, Veronika and Haak, Helmuth and de Vrese, Philipp and Raddatz, Thomas and Mauritsen, Thorsten and von Storch, Jin-Song and Behrens, Jörg and Brovkin, Victor and Claussen, Martin and Crueger, Traute and Fast, Irina and Fiedler, Stephanie and Hagemann, Stefan and Hohenegger, Cathy and Jahns, Thomas and Kloster, Silvia and Kinne, Stefan and Lasslop, Gitta and Kornblueh, Luis and Marotzke, Jochem and Matei, Daniela and Meraner, Katharina and Mikolajewicz, Uwe and Modali, Kameswarrao and Müller, Wolfgang and Nabel, Julia and Notz, Dirk and Peters-von Gehlen, Karsten and Pincus, Robert and Pohlmann, Holger and Pongratz, Julia and Rast, Sebastian and Schmidt, Hauke and Schnur, Reiner and Schulzweida, Uwe and Six, Katharina and Stevens, Bjorn and Voigt, Aiko and Roeckner, Erich},
+      keywords = {CMIP6, climate, CMIP6.CMIP.MPI-M.MPI-ESM1-2-LR.historical},
+      language = {en},
+      title = {MPI-M MPI-ESM1.2-LR model output prepared for CMIP6 CMIP historical. Version 20211412.},
+      publisher = {Earth System Grid Federation},
+      year = {2019},
+      copyright = {Creative Commons Attribution 4.0 International}
+    }
+    """  # noqa: E501
     if client is None:  # pragma: no cover
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 

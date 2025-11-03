@@ -21,6 +21,31 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## CMIP Cite v0.2.0 (2025-11-03)
+
+### ⚠️ Breaking Changes
+
+- - Changed the input arguments expected by [cmipcite.citations.get_citations][]. The old `format` and `author_list_style` should now be handled when creating the value to pass to the new `get_citation` argument. This provides finer-grained control over how citations are generated (once the DOIs and versions have been determined). For an API that closely mirrors the command-line `cmipcite get` API, see [cmipcite.citations.get][].
+  - Split `cmipcite.citations.get_citation_for_id` into [cmipcite.citations.get_text_citation][], [cmipcite.citations.get_bibtex_citation][] and [cmipcite.citations.get_doi_and_version][]. This allows the process of retrieving relevant DOIs and versions to be separated from how the citations for those DOIs and versions are retrieved and formatted.
+
+  ([#5](https://github.com/WCRP-CMIP/cmipcite/pull/5))
+
+### 🆕 Features
+
+- `get_citations` now works with tracking_id and PID. ([#3](https://github.com/WCRP-CMIP/cmipcite/pull/3))
+- - Added [cmipcite.citations.get][] to provide a Python API which closely mirrors the command-line `cmipcite get` command ([cmipcite.citations.get_citations][] is a lower-level function which provides more flexibility to Python users looking for greater control)
+  - Added the [cmipcite.tracking_id][] module to support handling of tracking IDs specifically (as opposed to PIDs)
+
+  ([#5](https://github.com/WCRP-CMIP/cmipcite/pull/5))
+
+### 🎉 Improvements
+
+- - Added support for getting citations for files that are members of multiple datasets i.e. associated with multiple PIDs
+  - Added the `--multi-dataset-handling` and `--handle-server-url` arguments to the `cmipcite get` CLI to add the support above and avoid hard-coding the server URL used throughout
+
+  ([#5](https://github.com/WCRP-CMIP/cmipcite/pull/5))
+
+
 ## CMIP Cite v0.1.3 (2025-10-28)
 
 No significant changes.
