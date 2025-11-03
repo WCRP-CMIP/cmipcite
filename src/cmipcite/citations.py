@@ -216,6 +216,12 @@ def get_citations(  # type: ignore
     """
     Get citations that apply to the given IDs or paths
 
+    IDs don't apply at the file level.
+    Hence, if your IDs are tracking IDs or paths,
+    then two or more IDs/paths can share the same citation.
+    This function returns the minimum set of citations required
+    i.e. any duplicate citations are removed.
+
     Parameters
     ----------
     ids_or_paths
