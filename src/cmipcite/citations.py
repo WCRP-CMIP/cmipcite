@@ -232,7 +232,7 @@ def get_doi_and_version(  # type: ignore
     if doi_level == "model":
         # get model doi
         r = httpx.get(
-            "https://api.datacite.org/dois/10.22033/ESGF/CMIP6.4700",
+            f"https://api.datacite.org/dois/{doi}",
             follow_redirects=True,
         )
         doi = r.raise_for_status().json()["data"]["attributes"]["container"][
