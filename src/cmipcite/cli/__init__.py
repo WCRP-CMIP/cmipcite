@@ -75,9 +75,10 @@ def get(  # noqa: PLR0913
             help="Whether the author list should be long (all names) or short (et al.)"
         ),
     ] = AuthorListStyle.LONG,
+    # TODO: should we rename to `doi_grouping_level` or `doi_group` or `doi_grouping`?
     doi_level: Annotated[
         DOILevel,
-        typer.Option(help="Level of the DOI."),
+        typer.Option(help="Grouping level of the DOI."),
     ] = DOILevel.MODEL,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],

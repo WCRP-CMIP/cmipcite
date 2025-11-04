@@ -45,8 +45,19 @@ class AuthorListStyle(StrEnum):
 class DOILevel(StrEnum):
     """
     DOI level
+
+    DOIs can be minted at multiple 'levels'
+    i.e. they can apply to a different group of datasets.
+    For example, DOIs minted at the 'model' level
+    apply to all submissions from that model.
+    DOIs minted at the 'experiment' level
+    apply to all outputs from a given experiment
+    run by a given model.
     """
 
+    # TODO: check if we want to call this model-experiment
+    # to be clearer about what this is
+    # (given we also have 'experiment' DOIs from the experiment description papers)
     EXPERIMENT = "experiment"
     """
     Experiment level DOI.
@@ -147,10 +158,17 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
     ----------
     nc_path
         Path to the CMIP netCDF file.
+
         The file must have a `tracking_id` global attribute.
+
+    Returns
+    -------
+    :
+        Tracking ID
     """
     with netCDF4.Dataset(nc_path) as ds:
         tracking_id = ds.getncattr("tracking_id")
+
     return str(tracking_id)
 
 
@@ -170,7 +188,9 @@ def get_doi_and_version(  # type: ignore
         Input ID or path to a netCDF file
 
     doi_level
-        Level of DOI to retrieve. Either "experiment" or "model".
+        Level of DOI to retrieve.
+
+        See [DOILevel][(m).] for details.
 
     client
         Client to use for interacting with pyhandle's REST API
@@ -230,7 +250,7 @@ def get_doi_and_version(  # type: ignore
     doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
     doi = doi_raw.replace("doi:", "")
 
-    if doi_level == "model":
+    if doi_level == DOILevel.MODEL:
         # get model doi
         r = httpx.get(
             f"https://api.datacite.org/dois/{doi}",
@@ -239,8 +259,13 @@ def get_doi_and_version(  # type: ignore
         doi = r.raise_for_status().json()["data"]["attributes"]["container"][
             "identifier"
         ]
-    elif doi_level != "experiment":  # pragma: no cover
-        raise NotImplementedError(DOILevel)
+
+    elif doi_level == DOILevel.EXPERIMENT:
+        # doi is already what we want
+        pass
+
+    else:  # pragma: no cover
+        raise NotImplementedError(doi_level)
 
     version = client.get_value_from_handle(pid, "VERSION_NUMBER")
 
@@ -283,6 +308,8 @@ def get_citations(  # type: ignore
     doi_level
         Level of DOI to retrieve.
 
+        See [DOILevel][(m).] for details.
+
     client
         Client to use for interacting with pyhandle's REST API
 
@@ -312,8 +339,14 @@ def get_citations(  # type: ignore
     (for CMIP, this collection of files
     is for a single variable sampled at a single frequency and spatial sampling
     from a single model running a single experiment).
-    All datasets from a single model or from a single experiment (and model)
-    are grouped under a DOI, associated with the dataset's PID.
+    For a given PID, we can retrieve the associated DOI.
+    However, there are multiple possibilities for the retrieved DOI.
+    These vary based on the 'grouping level' of the DOI.
+    At the moment, as far as we know, there are two grouping levels:
+    grouping based on the model that provided the data
+    or grouping based on the model that provided the data
+    and the experiment the dataset came from.
+    The `doi_level` controls which DOI grouping level you get.
 
     Examples
     --------
@@ -449,6 +482,8 @@ def get(  # noqa: PLR0913
     doi_level
         Level of DOI to retrieve.
 
+        See [DOILevel][(m).] for details.
+
     multi_dataset_handling
         Strategy to use when a given ID or file belongs to multiple datasets
 
@@ -474,8 +509,14 @@ def get(  # noqa: PLR0913
     (for CMIP, this collection of files
     is for a single variable sampled at a single frequency and spatial sampling
     from a single model running a single experiment).
-    All datasets from a single model or from a single experiment (and model)
-    are grouped under a DOI, associated with the dataset's PID.
+    For a given PID, we can retrieve the associated DOI.
+    However, there are multiple possibilities for the retrieved DOI.
+    These vary based on the 'grouping level' of the DOI.
+    At the moment, as far as we know, there are two grouping levels:
+    grouping based on the model that provided the data
+    or grouping based on the model that provided the data
+    and the experiment the dataset came from.
+    The `doi_level` controls which DOI grouping level you get.
     """
     get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
         format=format,
