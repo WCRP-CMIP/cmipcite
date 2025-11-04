@@ -82,11 +82,32 @@ Hence, you may run into installation issues.
 If you believe these are because of a problem in CMIP Cite,
 please [raise an issue](https://github.com/WCRP-CMIP/cmipcite/issues).
 
-The (non-locked) version of CMIP Cite can be installed with
+The (non-locked) version of CMIP cite can be installed with
 
 === "pip"
     ```sh
     pip install cmipcite
+    ```
+
+Additional dependencies can be installed using
+
+=== "mamba"
+    If you are installing with mamba, we recommend
+    installing the extras by hand because there is no stable
+    solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
+
+=== "conda"
+    If you are installing with conda, we recommend
+    installing the extras by hand because there is no stable
+    solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
+
+=== "pip"
+    ```sh
+    # To add file reading dependencies (at the moment, only netCDF reading)
+    pip install 'pandas-openscm[file-reading]'
+
+    # To add all optional dependencies
+    pip install 'pandas-openscm[full]'
     ```
 
 ### For developers
