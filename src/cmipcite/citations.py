@@ -151,7 +151,7 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
     """
     with netCDF4.Dataset(nc_path) as ds:
         tracking_id = ds.getncattr("tracking_id")
-    return tracking_id
+    return str(tracking_id)
 
 
 def get_doi_and_version(  # type: ignore
@@ -319,6 +319,7 @@ def get_citations(  # type: ignore
     --------
     >>> citations = get_citations(
     ...     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
+    ...     doi_level=DOILevel.MODEL,
     ...     get_citation=get_bibtex_citation,
     ... )
     >>> print(citations[0])
