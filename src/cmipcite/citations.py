@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any, Callable
 
 import httpx
-import netCDF4
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
+from cmipcite.exceptions import MissingOptionalDependencyError
 from cmipcite.tracking_id import (
     MultiDatasetHandlingStrategy,
     MultipleDatasetMemberError,
@@ -166,6 +166,13 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
     :
         Tracking ID
     """
+    try:
+        import netCDF4
+    except ImportError as exc:
+        raise MissingOptionalDependencyError(
+            "get_tracking_id_from_cmip_netcdf", requirement="netCDF4"
+        ) from exc
+
     with netCDF4.Dataset(nc_path) as ds:
         tracking_id = ds.getncattr("tracking_id")
 
