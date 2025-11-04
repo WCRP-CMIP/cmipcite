@@ -77,7 +77,7 @@ def get(  # noqa: PLR0913
     ] = AuthorListStyle.LONG,
     doi_level: Annotated[
         DOILevel,
-        typer.Option(help="Level of the DOI (model or experiment)."),
+        typer.Option(help="Level of the DOI."),
     ] = DOILevel.MODEL,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],

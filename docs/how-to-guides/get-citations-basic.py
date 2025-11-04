@@ -20,6 +20,7 @@
 # In the CMIP world, there are two types of PIDs:
 #   * file PID (also called tracking_id)
 #   * dataset PID (often referred to as just PID).
+#
 # A dataset is a collection of files from a single variable sampled at a single
 # frequency from a single model running a single experiment.
 # All the datasets from a single model or a single experiment (and model) are grouped
@@ -39,7 +40,7 @@ from cmipcite.citations import get
 #
 # First, we show how to do this via the Python API.
 # There is a simple  `get` function that allows the user to easily get a citation.
-# This function has sensible defaults and the same argument as the CLI api (see below).
+# This function has sensible defaults and the same arguments as the CLI api (see below).
 
 
 # %%
@@ -50,8 +51,6 @@ print(citations[0])
 # Instead of an id, you can also pass a path to a file.
 
 # %%
-# root_dir = Path.cwd().resolve().parents[1]  # adjust depth if needed
-# data_file = root_dir / "tests/test-data/sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"
 data_file = "tests/test-data/sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"
 citations = get([data_file])
 print(citations[0])
@@ -136,10 +135,10 @@ print(multi_member_cite)
 # More or less the same as the above, but from the command line instead.
 
 # %%
-# !cmipcite get 'hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b'
+# !cmipcite get 'hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791'
 
 # %%
-# !cmipcite get 'hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b' \
+# !cmipcite get 'hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791' \
 #   --author-list-style short
 
 # %%
@@ -150,7 +149,7 @@ print(multi_member_cite)
 # If you wish, you can save the output directly to a file.
 
 # %%
-# !cmipcite get 'hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b' --out-path demo.txt
+# !cmipcite get 'hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791' --out-path demo.txt
 
 # %%
 with open("demo.txt") as fh:

@@ -37,13 +37,9 @@ from cmipcite.citations import (
 # behavior. A few such functions are provided out-of-the-box.
 
 
-# %%
-
-
 # %% [markdown]
 # ### Bibtex
 #
-# A single citation for a single tracking ID or PID can be retrieved as shown.
 
 # %%
 bibtex_citations = get_citations(

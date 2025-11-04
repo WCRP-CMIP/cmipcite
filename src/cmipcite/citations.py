@@ -108,6 +108,8 @@ def get_bibtex_citation(doi: str, version: str) -> str:
     """
     Get bibtex citation
 
+    The version is added to the title field.
+
     Parameters
     ----------
     doi
@@ -256,8 +258,7 @@ def get_citations(  # type: ignore
     """
     Get citations that apply to the given IDs or paths
 
-    IDs don't apply at the file level.
-    Hence, if your IDs are tracking IDs or paths,
+    If your IDs are tracking IDs or paths,
     then two or more IDs/paths can share the same citation.
     This function returns the minimum set of citations required
     i.e. any duplicate citations are removed.
@@ -281,7 +282,7 @@ def get_citations(  # type: ignore
         For example, [get_bibtex_citation][(m).].
 
     doi_level
-        Level of DOI to retrieve. Either "experiment" or "model".
+        Level of DOI to retrieve.
 
     client
         Client to use for interacting with pyhandle's REST API
@@ -314,9 +315,6 @@ def get_citations(  # type: ignore
     from a single model running a single experiment).
     All datasets from a single model or from a single experiment (and model)
     are grouped under a DOI, associated with the dataset's PID.
-    There also exist DOIs associated to a single model,
-    that include all the experiments performed by that model,
-    but they are not used by this package at the moment.
 
     Examples
     --------
@@ -431,14 +429,15 @@ def get(  # noqa: PLR0913
     handle_server_url: str = "http://hdl.handle.net/",
 ) -> list[str]:
     """
-    Get citations from CMIP files or tracking IDs or PIDs
+    Get citations without duplicates from CMIP files or tracking IDs or PIDs
 
     This function mirrors the CLI `get` command as closely as possible.
 
     Parameters
     ----------
     in_values
-        Tracking IDs, PIDs or file paths for which to generate citations
+        Tracking IDs, PIDs or file paths for which to generate citations.
+        Paths should point to a CMIP file with a `tracking_id` global attribute.
 
     format
         Format in which to retrieve the citations
@@ -446,19 +445,37 @@ def get(  # noqa: PLR0913
     author_list_style
         Whether, if the format is text,
         the author list should be long (all names) or short (et al.)
+
     doi_level
-        Level of DOI to retrieve. Either "experiment" or "model".
+        Level of DOI to retrieve.
 
     multi_dataset_handling
         Strategy to use when a given ID or file belongs to multiple datasets
 
     handle_server_url
         URL of the server to use for handling tracking IDs i.e. handles
+        If not supplied, a new client with a default handle server URL
+        is instantiated.
 
     Returns
     -------
     :
         Retrieved citations for `in_values`
+
+    Notes
+    -----
+    Citations can be retrieved with the help of the Persistent IDentifiers (PIDs).
+    In the CMIP world, there are two types of PIDs:
+
+       * file PID (normally referred to as a tracking ID)
+       * dataset PID (normally simply referred to as PID).
+
+    A dataset is a collection of files
+    (for CMIP, this collection of files
+    is for a single variable sampled at a single frequency and spatial sampling
+    from a single model running a single experiment).
+    All datasets from a single model or from a single experiment (and model)
+    are grouped under a DOI, associated with the dataset's PID.
     """
     get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
         format=format,
