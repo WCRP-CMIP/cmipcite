@@ -4,6 +4,7 @@ Integration tests of the CLI
 
 from __future__ import annotations
 
+import pytest
 from typer.testing import CliRunner
 
 import cmipcite
@@ -38,6 +39,8 @@ def test_multiple_error_message():
 
 
 def test_handle_path_equivalence(test_data_dir):
+    pytest.importorskip("netCDF4")
+
     args_id = ["get", "hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"]
 
     result_id = runner.invoke(app, args_id)
