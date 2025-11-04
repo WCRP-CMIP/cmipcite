@@ -187,7 +187,6 @@ def get_doi_and_version(  # type: ignore
 
         Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
 
-
     Returns
     -------
     doi :
