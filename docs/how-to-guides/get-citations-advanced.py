@@ -15,12 +15,18 @@
 # %% [markdown] editable=true slideshow={"slide_type": ""}
 # # How to get citations ?  (Advanced version)
 #
+# Here, we show how you can get citations for CMIP data
+# with a fine-level of user control.
+# For the basic intro, please see
+# [How to get citations ? (Basic version)](../get-citations-basic).
 
 # %% [markdown]
 # ## Imports
 
 # %%
 from functools import partial
+
+import httpx
 
 from cmipcite.citations import (
     AuthorListStyle,
@@ -40,6 +46,8 @@ from cmipcite.citations import (
 # %% [markdown]
 # ### Bibtex
 #
+# This support is built-in.
+# Simply pass `get_bibtex_citation` to `get_citation`.
 
 # %%
 bibtex_citations = get_citations(
@@ -53,6 +61,11 @@ print(bibtex_citations[0])
 
 # %% [markdown]
 # ### Plain text
+#
+# A specific implementation of this is built-in.
+# You can pass in `get_text_citation`
+# with a 'pre-loaded' value for `author_list_style`
+# using [`functools.partial`](https://docs.python.org/3/library/functools.html#functools.partial).
 
 # %%
 plaintex_citations = get_citations(
@@ -65,6 +78,8 @@ print(plaintex_citations[0])
 
 # %% [markdown]
 # Plain text with a short author list
+# If you need a different value for `author_list_style`,
+# just change it in the call to `partial`.
 
 # %%
 plaintex_citations = get_citations(
@@ -74,3 +89,39 @@ plaintex_citations = get_citations(
 )
 
 print(plaintex_citations[0])
+
+
+# %% [markdown]
+# ### Inject your own function
+#
+# You can also inject your own, custom function.
+
+
+# %%
+def get_my_citation(doi: str, version: str) -> str:
+    """
+    Get custom citation
+    """
+    r = httpx.get(f"https://api.datacite.org/dois/{doi}", follow_redirects=True)
+    data = r.raise_for_status().json()["data"]["attributes"]
+
+    creators = ", ".join(
+        [
+            f"{c['name'].split(',')[1].strip()} {c['name'].split(',')[0]}"
+            for c in data["creators"]
+        ]
+    )
+
+    citation = f"{version} {data['titles'][0]['title']} by {creators}. DOI: https://doi.org/{doi}"
+
+    return citation
+
+
+# %%
+custom_citations = get_citations(
+    ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
+    doi_level=DOILevel.MODEL,
+    get_citation=get_my_citation,
+)
+
+print(custom_citations[0])
