@@ -1,5 +1,7 @@
 """
-Tool for gathering citations for CMIP data using the unique id (PID) tracking service maintained by DKRZ
+Tool for gathering citations for CMIP data using the unique id (PID) tracking service
+
+At present, this service is maintained by DKRZ.
 """
 
 import importlib.metadata

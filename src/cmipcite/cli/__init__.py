@@ -56,7 +56,7 @@ def get(  # noqa: PLR0913
     in_values: Annotated[
         list[str],
         typer.Argument(
-            help="Tracking IDs, PIDs or file paths for which to generate citations"
+            help="Tracking IDs, PIDs or file paths for which to generate citations."
         ),
     ],
     out_path: Annotated[
@@ -67,23 +67,23 @@ def get(  # noqa: PLR0913
     ] = None,
     format: Annotated[
         FormatOption,
-        typer.Option(help="Format in which to retrieve the citations"),
+        typer.Option(help="Format in which to retrieve the citations."),
     ] = FormatOption.TEXT,
     author_list_style: Annotated[
         AuthorListStyle,
         typer.Option(
-            help="Whether the author list should be long (all names) or short (et al.)"
+            help="Whether the author list should be long (all names) or short (et al.)."
         ),
     ] = AuthorListStyle.LONG,
     # TODO: rename to doi_granularity here and throughout
     doi_level: Annotated[
         DOILevel,
-        typer.Option(help="Grouping level of the DOI."),
+        typer.Option(help="Desired granularity of the retrieved DOIs."),
     ] = DOILevel.MODEL,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],
         typer.Option(
-            help="Strategy to use when a given ID or file belongs to multiple datasets"
+            help="Strategy to use when a given ID or file belongs to multiple datasets."
         ),
     ] = None,
     handle_server_url: Annotated[

@@ -47,13 +47,13 @@ class DOILevel(StrEnum):
     """
     DOI level
 
-    DOIs can be minted at multiple 'levels'
-    i.e. they can apply to a different group of datasets.
+    DOIs can be minted at different levels of granularity
+    i.e. they can capture different groups of datasets.
     For example, DOIs minted at the 'model' level
-    apply to all submissions from that model.
+    apply to all submissions from that model for a given MIP.
     DOIs minted at the 'experiment' level
     apply to all outputs from a given experiment
-    run by a given model.
+    run by a given model in a given MIP.
     """
 
     # TODO: update notes.
@@ -196,6 +196,7 @@ def get_doi_and_version(  # type: ignore
     in_value
         Input ID or path to a netCDF file
 
+    TODO: rename and update
     doi_level
         Level of DOI to retrieve.
 
@@ -270,7 +271,7 @@ def get_doi_and_version(  # type: ignore
         ]
 
     elif doi_level == DOILevel.EXPERIMENT:
-        # doi is already what we want
+        # doi is already in the desired form
         pass
 
     else:  # pragma: no cover
@@ -314,6 +315,7 @@ def get_citations(  # type: ignore
 
         For example, [get_bibtex_citation][(m).].
 
+    TODO: rename and update
     doi_level
         Level of DOI to retrieve.
 
