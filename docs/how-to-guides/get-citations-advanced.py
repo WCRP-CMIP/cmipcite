@@ -52,7 +52,7 @@ from cmipcite.citations import (
 # %%
 bibtex_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    doi_granularity=DOIGranularity.MODEL,
+    doi_granularity=DOIGranularity.EXPERIMENT,
     get_citation=get_bibtex_citation,
 )
 print(f"{len(bibtex_citations)=}")
