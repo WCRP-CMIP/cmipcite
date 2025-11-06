@@ -104,10 +104,10 @@ Additional dependencies can be installed using
 === "pip"
     ```sh
     # To add file reading dependencies (at the moment, only netCDF reading)
-    pip install 'pandas-openscm[file-reading]'
+    pip install 'cmipcite[file-reading]'
 
     # To add all optional dependencies
-    pip install 'pandas-openscm[full]'
+    pip install 'cmipcite[full]'
     ```
 
 ### For developers
