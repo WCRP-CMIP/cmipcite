@@ -196,8 +196,8 @@ def get_doi_and_version(  # type: ignore
     in_value
         Input ID or path to a netCDF file
 
-    TODO: rename and update
     doi_level
+        TODO: rename and update
         Level of DOI to retrieve.
 
         See [DOILevel][(m).] for details.
@@ -315,8 +315,8 @@ def get_citations(  # type: ignore
 
         For example, [get_bibtex_citation][(m).].
 
-    TODO: rename and update
     doi_level
+        TODO: rename and update
         Level of DOI to retrieve.
 
         See [DOILevel][(m).] for details.
