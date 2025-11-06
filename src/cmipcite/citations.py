@@ -42,6 +42,7 @@ class AuthorListStyle(StrEnum):
     """
 
 
+# TODO: change to DOIGranularity throughout
 class DOILevel(StrEnum):
     """
     DOI level
@@ -55,9 +56,10 @@ class DOILevel(StrEnum):
     run by a given model.
     """
 
-    # TODO: check if we want to call this model-experiment
-    # to be clearer about what this is
-    # (given we also have 'experiment' DOIs from the experiment description papers)
+    # TODO: update notes.
+    # We use the 'lowest-level' from the DRS as a short-hand.
+    # experiment is short for mip-model-experiment.
+    # model is short for mip-model.
     EXPERIMENT = "experiment"
     """
     Experiment level DOI.
@@ -348,12 +350,11 @@ def get_citations(  # type: ignore
     from a single model running a single experiment).
     For a given PID, we can retrieve the associated DOI.
     However, there are multiple possibilities for the retrieved DOI.
-    These vary based on the 'grouping level' of the DOI.
-    At the moment, as far as we know, there are two grouping levels:
-    grouping based on the model that provided the data
-    or grouping based on the model that provided the data
-    and the experiment the dataset came from.
-    The `doi_level` controls which DOI grouping level you get.
+    These vary based on the granularity of the DOI.
+    At the moment, as far as we know, there are two granularities:
+    a) capturing all submissions to a given MIP by a given model
+    b) capturing all submissions to a given MIP by a given model for a given experiment.
+    The `doi_granularity` controls which DOI grouping level you get.
 
     Examples
     --------
@@ -518,12 +519,11 @@ def get(  # noqa: PLR0913
     from a single model running a single experiment).
     For a given PID, we can retrieve the associated DOI.
     However, there are multiple possibilities for the retrieved DOI.
-    These vary based on the 'grouping level' of the DOI.
-    At the moment, as far as we know, there are two grouping levels:
-    grouping based on the model that provided the data
-    or grouping based on the model that provided the data
-    and the experiment the dataset came from.
-    The `doi_level` controls which DOI grouping level you get.
+    These vary based on the granularity of the DOI.
+    At the moment, as far as we know, there are two granularities:
+    a) capturing all submissions to a given MIP by a given model
+    b) capturing all submissions to a given MIP by a given model for a given experiment.
+    The `doi_granularity` controls which DOI grouping level you get.
     """
     get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
         format=format,
