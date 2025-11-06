@@ -42,32 +42,42 @@ class AuthorListStyle(StrEnum):
     """
 
 
-# TODO: change to DOIGranularity throughout
-class DOILevel(StrEnum):
+class DOIGranularity(StrEnum):
     """
-    DOI level
+    DOI granularity
 
-    DOIs can be minted at different levels of granularity
-    i.e. they can capture different groups of datasets.
-    For example, DOIs minted at the 'model' level
-    apply to all submissions from that model for a given MIP.
-    DOIs minted at the 'experiment' level
-    apply to all outputs from a given experiment
-    run by a given model in a given MIP.
+    CMIP data can be aggregated at different granularities.
+    Data citations are designated on data aggregations belonging to a model
+    contribution to a MIP (or activity_id) and on data belonging to an experiment
+    contributed by a specific model:
+    model: <mip_era>/<activity_id>/<institution_id>/<source_id>
+    experiment: <mip_era>/<activity_id>/<institution_id>/<source_id>/<experiment_id>.
     """
 
-    # TODO: update notes.
-    # We use the 'lowest-level' from the DRS as a short-hand.
-    # experiment is short for mip-model-experiment.
-    # model is short for mip-model.
     EXPERIMENT = "experiment"
     """
-    Experiment level DOI.
+    mip-model-experiment granularity of DOI.
     """
 
     MODEL = "model"
     """
-    Model level DOI
+    mip-model granularity of DOI.
+    """
+
+
+class FormatOption(StrEnum):
+    """
+    Citation format options
+    """
+
+    BIBTEX = "bibtex"
+    """
+    Bibtex format
+    """
+
+    TEXT = "text"
+    """
+    Plain text file
     """
 
 
@@ -183,7 +193,7 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
 
 def get_doi_and_version(  # type: ignore
     in_value: str,
-    doi_level: DOILevel,
+    doi_granularity: DOIGranularity,
     client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
@@ -196,11 +206,14 @@ def get_doi_and_version(  # type: ignore
     in_value
         Input ID or path to a netCDF file
 
-    doi_level
-        TODO: rename and update
-        Level of DOI to retrieve.
+    doi_granularity
+        Granularity of DOI to retrieve.
 
-        See [DOILevel][(m).] for details.
+        We use the 'lowest-level' from the DRS as a short-hand.
+        "experiment" is short for mip-model-experiment.
+        "model" is short for mip-model.
+
+        See [DOIGranularity][(m).] for details.
 
     client
         Client to use for interacting with pyhandle's REST API
@@ -260,7 +273,7 @@ def get_doi_and_version(  # type: ignore
     doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
     doi = doi_raw.replace("doi:", "")
 
-    if doi_level == DOILevel.MODEL:
+    if doi_granularity == DOIGranularity.MODEL:
         # get model doi
         r = httpx.get(
             f"https://api.datacite.org/dois/{doi}",
@@ -270,12 +283,12 @@ def get_doi_and_version(  # type: ignore
             "identifier"
         ]
 
-    elif doi_level == DOILevel.EXPERIMENT:
+    elif doi_granularity == DOIGranularity.EXPERIMENT:
         # doi is already in the desired form
         pass
 
     else:  # pragma: no cover
-        raise NotImplementedError(doi_level)
+        raise NotImplementedError(doi_granularity)
 
     version = client.get_value_from_handle(pid, "VERSION_NUMBER")
 
@@ -285,7 +298,7 @@ def get_doi_and_version(  # type: ignore
 def get_citations(  # type: ignore
     ids_or_paths: list[str],
     get_citation: Callable[[str, str], str],
-    doi_level: DOILevel,
+    doi_granularity: DOIGranularity,
     client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
 ) -> list[str]:
@@ -315,11 +328,10 @@ def get_citations(  # type: ignore
 
         For example, [get_bibtex_citation][(m).].
 
-    doi_level
-        TODO: rename and update
-        Level of DOI to retrieve.
+    doi_granularity
+        Granularity of DOI to retrieve.
 
-        See [DOILevel][(m).] for details.
+        See [DOIGranularity][(m).] for details.
 
     client
         Client to use for interacting with pyhandle's REST API
@@ -350,19 +362,22 @@ def get_citations(  # type: ignore
     (for CMIP, this collection of files
     is for a single variable sampled at a single frequency and spatial sampling
     from a single model running a single experiment).
-    For a given PID, we can retrieve the associated DOI.
+    Both PID types can be passed to `ids_or_paths`.
+
+    For a given PID, we can retrieve an associated DOI.
     However, there are multiple possibilities for the retrieved DOI.
     These vary based on the granularity of the DOI.
     At the moment, as far as we know, there are two granularities:
-    a) capturing all submissions to a given MIP by a given model
-    b) capturing all submissions to a given MIP by a given model for a given experiment.
-    The `doi_granularity` controls which DOI grouping level you get.
+        * model (capturing all submissions to a given MIP by a given model)
+        * experiment (capturing all submissions to a given MIP by a given model for a
+        given experiment.
+    This is controlled by `doi_granularity`.
 
     Examples
     --------
     >>> citations = get_citations(
     ...     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    ...     doi_level=DOILevel.MODEL,
+    ...     doi_granularity=DOIGranularity.MODEL,
     ...     get_citation=get_bibtex_citation,
     ... )
     >>> print(citations[0])
@@ -386,7 +401,7 @@ def get_citations(  # type: ignore
             v,
             client=client,
             multi_dataset_handling=multi_dataset_handling,
-            doi_level=doi_level,
+            doi_granularity=doi_granularity,
         )
         for v in ids_or_paths
     ]
@@ -396,22 +411,6 @@ def get_citations(  # type: ignore
     res = [get_citation(doi, version) for doi, version in doi_versions_unique]
 
     return res
-
-
-class FormatOption(StrEnum):
-    """
-    Citation format options
-    """
-
-    BIBTEX = "bibtex"
-    """
-    Bibtex format
-    """
-
-    TEXT = "text"
-    """
-    Plain text file
-    """
 
 
 def translate_get_args_to_get_citations_kwargs(
@@ -467,7 +466,7 @@ def get(  # noqa: PLR0913
     in_values: list[str],
     format: FormatOption = FormatOption.TEXT,
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
-    doi_level: DOILevel = DOILevel.MODEL,
+    doi_granularity: DOIGranularity = DOIGranularity.MODEL,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     handle_server_url: str = "http://hdl.handle.net/",
 ) -> list[str]:
@@ -489,10 +488,10 @@ def get(  # noqa: PLR0913
         Whether, if the format is text,
         the author list should be long (all names) or short (et al.)
 
-    doi_level
-        Level of DOI to retrieve.
+    doi_granularity
+        Granularity of DOI to retrieve.
 
-        See [DOILevel][(m).] for details.
+        See [DOIGranularity][(m).] for details.
 
     multi_dataset_handling
         Strategy to use when a given ID or file belongs to multiple datasets
@@ -519,13 +518,16 @@ def get(  # noqa: PLR0913
     (for CMIP, this collection of files
     is for a single variable sampled at a single frequency and spatial sampling
     from a single model running a single experiment).
-    For a given PID, we can retrieve the associated DOI.
+    Both PID types can be passed to `in_values`.
+
+    For a given PID, we can retrieve an associated DOI.
     However, there are multiple possibilities for the retrieved DOI.
     These vary based on the granularity of the DOI.
     At the moment, as far as we know, there are two granularities:
-    a) capturing all submissions to a given MIP by a given model
-    b) capturing all submissions to a given MIP by a given model for a given experiment.
-    The `doi_granularity` controls which DOI grouping level you get.
+        * model (capturing all submissions to a given MIP by a given model)
+        * experiment (capturing all submissions to a given MIP by a given model for a
+        given experiment.
+    This is controlled by `doi_granularity`.
     """
     get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
         format=format,
@@ -537,7 +539,7 @@ def get(  # noqa: PLR0913
         citations = get_citations(
             ids_or_paths=in_values,
             multi_dataset_handling=multi_dataset_handling,
-            doi_level=doi_level,
+            doi_granularity=doi_granularity,
             **get_citations_kwargs,
         )
     except MultipleDatasetMemberError as exc:

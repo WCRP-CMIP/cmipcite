@@ -12,7 +12,7 @@ import typer
 import cmipcite
 from cmipcite.citations import (
     AuthorListStyle,
-    DOILevel,
+    DOIGranularity,
     FormatOption,
     get_citations,
     translate_get_args_to_get_citations_kwargs,
@@ -75,11 +75,10 @@ def get(  # noqa: PLR0913
             help="Whether the author list should be long (all names) or short (et al.)."
         ),
     ] = AuthorListStyle.LONG,
-    # TODO: rename to doi_granularity here and throughout
-    doi_level: Annotated[
-        DOILevel,
+    doi_granularity: Annotated[
+        DOIGranularity,
         typer.Option(help="Desired granularity of the retrieved DOIs."),
-    ] = DOILevel.MODEL,
+    ] = DOIGranularity.MODEL,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],
         typer.Option(
@@ -105,7 +104,7 @@ def get(  # noqa: PLR0913
     try:
         citations = get_citations(
             ids_or_paths=in_values,
-            doi_level=doi_level,
+            doi_granularity=doi_granularity,
             multi_dataset_handling=multi_dataset_handling,
             **get_citations_kwargs,
         )

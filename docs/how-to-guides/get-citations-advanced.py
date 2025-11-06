@@ -30,7 +30,7 @@ import httpx
 
 from cmipcite.citations import (
     AuthorListStyle,
-    DOILevel,
+    DOIGranularity,
     get_bibtex_citation,
     get_citations,
     get_text_citation,
@@ -52,7 +52,7 @@ from cmipcite.citations import (
 # %%
 bibtex_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    doi_level=DOILevel.MODEL,
+    doi_granularity=DOIGranularity.MODEL,
     get_citation=get_bibtex_citation,
 )
 print(f"{len(bibtex_citations)=}")
@@ -70,7 +70,7 @@ print(bibtex_citations[0])
 # %%
 plaintex_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    doi_level=DOILevel.EXPERIMENT,
+    doi_granularity=DOIGranularity.EXPERIMENT,
     get_citation=partial(get_text_citation, author_list_style=AuthorListStyle.LONG),
 )
 
@@ -84,7 +84,7 @@ print(plaintex_citations[0])
 # %%
 plaintex_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    doi_level=DOILevel.MODEL,
+    doi_granularity=DOIGranularity.MODEL,
     get_citation=partial(get_text_citation, author_list_style=AuthorListStyle.SHORT),
 )
 
@@ -120,7 +120,7 @@ def get_my_citation(doi: str, version: str) -> str:
 # %%
 custom_citations = get_citations(
     ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
-    doi_level=DOILevel.MODEL,
+    doi_granularity=DOIGranularity.MODEL,
     get_citation=get_my_citation,
 )
 

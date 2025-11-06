@@ -15,7 +15,7 @@ runner = CliRunner()
 
 
 @pytest.mark.parametrize(
-    "out_path, out_format, author_list_style, doi_level",
+    "out_path, out_format, author_list_style, doi_granularity",
     (
         pytest.param(None, None, None, None, id="defaults"),
         pytest.param("tmp.bib", "bibtex", "short", "experiment", id="bib-short-exp"),
@@ -23,7 +23,7 @@ runner = CliRunner()
     ),
 )
 def test_citations_args(  # noqa: PLR0913
-    out_path, out_format, author_list_style, doi_level, file_regression, tmpdir
+    out_path, out_format, author_list_style, doi_granularity, file_regression, tmpdir
 ):
     args = ["get", "hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"]
 
@@ -37,8 +37,8 @@ def test_citations_args(  # noqa: PLR0913
     if author_list_style is not None:
         args.extend(["--author-list-style", author_list_style])
 
-    if doi_level is not None:
-        args.extend(["--doi-level", doi_level])
+    if doi_granularity is not None:
+        args.extend(["--doi-granularity", doi_granularity])
 
     result = runner.invoke(app, args)
 

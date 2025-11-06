@@ -15,16 +15,17 @@
 # %% [markdown] editable=true slideshow={"slide_type": ""}
 # # How to get citations ? (Basic version)
 #
-# Here, we show how you can get citations for CMIP data.
-# Citation can be retrieved with the help of the Persistent IDentifiers (PIDs).
+# Citations can be retrieved with the help of the Persistent IDentifiers (PIDs).
 # In the CMIP world, there are two types of PIDs:
-#   * file PID (also called tracking_id)
-#   * dataset PID (often referred to as just PID).
-#
-# A dataset is a collection of files from a single variable sampled at a single
-# frequency from a single model running a single experiment.
-# All the datasets from a single model or a single experiment (and model) are grouped
-# under a DOI.
+
+#     * file PID (normally referred to as a tracking ID)
+#     * dataset PID (normally simply referred to as PID).
+
+# A dataset is a collection of files
+# (for CMIP, this collection of files
+# is for a single variable sampled at a single frequency and spatial sampling
+# from a single model running a single experiment).
+# Both PID types can be passed to `ids_or_paths`.
 
 
 # %% [markdown]
@@ -78,12 +79,20 @@ print(citations[0])
 
 
 # %% [markdown]
-# You can specify the level of the DOI (model or experiment)
+# There are multiple possibilities for the retrieved DOI.
+# These vary based on the granularity of the DOI.
+# At the moment, as far as we know, there are two granularities:
+#     * model (capturing all submissions to a given MIP by a given model)
+#        * DRS: `<mip_era>/<activity_id>/<institution_id>/<source_id>`
+#     * experiment (capturing all submissions to a given MIP by a given model for a
+#     given experiment.
+#        * DRS: `<mip_era>/<activity_id>/<institution_id>/<source_id>/<experiment_id>`
+# This is controlled by `doi_granularity`.
 
 # %%
 citations = get(
     ["hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"],
-    doi_level="experiment",
+    doi_granularity="experiment",
 )
 print(citations[0])
 
