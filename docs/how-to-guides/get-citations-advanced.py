@@ -51,7 +51,7 @@ from cmipcite.citations import (
 
 # %%
 bibtex_citations = get_citations(
-    ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
+    ["hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"],
     doi_granularity=DOIGranularity.EXPERIMENT,
     get_citation=get_bibtex_citation,
 )
@@ -69,7 +69,7 @@ print(bibtex_citations[0])
 
 # %%
 plaintex_citations = get_citations(
-    ["hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"],
+    ["hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"],
     doi_granularity=DOIGranularity.EXPERIMENT,
     get_citation=partial(get_text_citation, author_list_style=AuthorListStyle.LONG),
 )
