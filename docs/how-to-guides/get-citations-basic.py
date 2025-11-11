@@ -25,7 +25,7 @@
 # (for CMIP, this collection of files
 # is for a single variable sampled at a single frequency and spatial sampling
 # from a single model running a single experiment).
-# Both PID types can be passed to `ids_or_paths`.
+# Both PID types can be given as input.
 
 
 # %% [markdown]
