@@ -12,6 +12,7 @@ import typer
 import cmipcite
 from cmipcite.citations import (
     AuthorListStyle,
+    DOIGranularity,
     FormatOption,
     get_citations,
     translate_get_args_to_get_citations_kwargs,
@@ -55,7 +56,7 @@ def get(  # noqa: PLR0913
     in_values: Annotated[
         list[str],
         typer.Argument(
-            help="Tracking IDs, PIDs or file paths for which to generate citations"
+            help="Tracking IDs, PIDs or file paths for which to generate citations."
         ),
     ],
     out_path: Annotated[
@@ -66,18 +67,22 @@ def get(  # noqa: PLR0913
     ] = None,
     format: Annotated[
         FormatOption,
-        typer.Option(help="Format in which to retrieve the citations"),
+        typer.Option(help="Format in which to retrieve the citations."),
     ] = FormatOption.TEXT,
     author_list_style: Annotated[
         AuthorListStyle,
         typer.Option(
-            help="Whether the author list should be long (all names) or short (et al.)"
+            help="Whether the author list should be long (all names) or short (et al.)."
         ),
     ] = AuthorListStyle.LONG,
+    doi_granularity: Annotated[
+        DOIGranularity,
+        typer.Option(help="Desired granularity of the retrieved DOIs."),
+    ] = DOIGranularity.MODEL,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],
         typer.Option(
-            help="Strategy to use when a given ID or file belongs to multiple datasets"
+            help="Strategy to use when a given ID or file belongs to multiple datasets."
         ),
     ] = None,
     handle_server_url: Annotated[
@@ -99,6 +104,7 @@ def get(  # noqa: PLR0913
     try:
         citations = get_citations(
             ids_or_paths=in_values,
+            doi_granularity=doi_granularity,
             multi_dataset_handling=multi_dataset_handling,
             **get_citations_kwargs,
         )

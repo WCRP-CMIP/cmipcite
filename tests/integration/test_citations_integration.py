@@ -26,3 +26,14 @@ def test_multiple_error_message():
         ),
     ):
         get(["hdl:21.14100/cfb3c24b-921a-49af-8b7b-1346c764e750"])
+
+
+def test_handle_path_equivalence(test_data_dir):
+    pytest.importorskip("netCDF4")
+
+    out_id = get(
+        ["hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"],
+    )
+    out_path = get([test_data_dir / "sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"])
+
+    assert out_id == out_path

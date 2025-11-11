@@ -1,7 +1,7 @@
 <!--- --8<-- [start:description] -->
-# CMIP Cite
+# CMIP Cite (cmipcite)
 
-Tool for gathering citations for CMIP data using the unique id (PID) tracking service maintained by DKRZ
+Tool for gathering citations for CMIP data using the unique id (PID) tracking service (currently maintained by DKRZ).
 
 **Key info :**
 [![Docs](https://readthedocs.org/projects/cmipcite/badge/?version=latest)](https://cmipcite.readthedocs.io)
@@ -52,13 +52,13 @@ don't render correctly on GitHub's viewer.
 <!--- --8<-- [start:installation] -->
 ### As an application
 
-If you want to use CMIP Cite as an application,
+If you want to use cmipcite as an application,
 then we recommend using the 'locked' version of the package.
 This version pins the version of all dependencies too,
 which reduces the chance of installation issues
 because of breaking updates to dependencies.
 
-The locked version of CMIP Cite can be installed with
+The locked version of cmipcite can be installed with
 
 === "pip"
     ```sh
@@ -67,7 +67,7 @@ The locked version of CMIP Cite can be installed with
 
 ### As a library
 
-If you want to use CMIP Cite as a library,
+If you want to use cmipcite as a library,
 for example you want to use it
 as a dependency in another package/application that you're building,
 then we recommend installing the package with the commands below.
@@ -75,18 +75,39 @@ This method provides the loosest pins possible of all dependencies.
 This gives you, the package/application developer,
 as much freedom as possible to set the versions of different packages.
 However, the tradeoff with this freedom is that you may install
-incompatible versions of CMIP Cite's dependencies
+incompatible versions of cmipcite's dependencies
 (we cannot test all combinations of dependencies,
 particularly ones which haven't been released yet!).
 Hence, you may run into installation issues.
-If you believe these are because of a problem in CMIP Cite,
+If you believe these are because of a problem in cmipcite,
 please [raise an issue](https://github.com/WCRP-CMIP/cmipcite/issues).
 
-The (non-locked) version of CMIP Cite can be installed with
+The (non-locked) version of cmipcite can be installed with
 
 === "pip"
     ```sh
     pip install cmipcite
+    ```
+
+Additional dependencies can be installed using
+
+=== "mamba"
+    If you are installing with mamba, we recommend
+    installing the extras by hand because there is no stable
+    solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
+
+=== "conda"
+    If you are installing with conda, we recommend
+    installing the extras by hand because there is no stable
+    solution yet (see [conda issue #7502](https://github.com/conda/conda/issues/7502))
+
+=== "pip"
+    ```sh
+    # To add file reading dependencies (at the moment, only netCDF reading)
+    pip install 'cmipcite[file-reading]'
+
+    # To add all optional dependencies
+    pip install 'cmipcite[full]'
     ```
 
 ### For developers
