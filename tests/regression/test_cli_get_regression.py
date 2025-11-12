@@ -87,4 +87,4 @@ def test_types_of_id(input_id, extra_args, file_regression, tmpdir):
     res = result.stdout
 
     suffix = ".txt"
-    file_regression.check(res, extension=suffix)
+    file_regression.check(res, extension=suffix, encoding="utf-8")
