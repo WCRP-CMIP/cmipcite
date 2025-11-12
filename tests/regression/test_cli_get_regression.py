@@ -52,7 +52,7 @@ def test_citations_args(  # noqa: PLR0913
         with open(out_path_full) as fh:
             res = fh.read()
 
-    file_regression.check(res, extension=suffix)
+    file_regression.check(res, extension=suffix, encoding="utf-8")
 
 
 @pytest.mark.parametrize(
