@@ -52,7 +52,7 @@ def test_citations_args(  # noqa: PLR0913
         with open(out_path_full) as fh:
             res = fh.read()
 
-    file_regression.check(res, extension=suffix)
+    file_regression.check(res, extension=suffix, encoding="utf-8")
 
 
 @pytest.mark.parametrize(
@@ -87,4 +87,4 @@ def test_types_of_id(input_id, extra_args, file_regression, tmpdir):
     res = result.stdout
 
     suffix = ".txt"
-    file_regression.check(res, extension=suffix)
+    file_regression.check(res, extension=suffix, encoding="utf-8")
