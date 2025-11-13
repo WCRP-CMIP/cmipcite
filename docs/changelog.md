@@ -21,6 +21,29 @@ from the examples given in that link.
 
 <!-- towncrier release notes start -->
 
+## CMIP Cite v0.3.0 (2025-11-13)
+
+### ⚠️ Breaking Changes
+
+- Changed default citations to be 'model' granularity citations rather than 'model-experiment' granularity citations.
+  In practice, this means that you will get fewer citations and they will be the ones that apply to all submissions for a given model, rather than one citation for each model-experiment combination that is found. ([#7](https://github.com/WCRP-CMIP/cmipcite/pull/7))
+
+### 🆕 Features
+
+- - Added support for taking paths to CMIP netCDF files as input
+  - Added `doi_granularity` option so users can specify whether they want citations at the model or experiment granularity
+
+  ([#7](https://github.com/WCRP-CMIP/cmipcite/pull/7))
+
+### 📚 Improved Documentation
+
+- Split how-to get citations docs into basic and advanced ([#7](https://github.com/WCRP-CMIP/cmipcite/pull/7))
+
+### 🔧 Trivial/Internal Changes
+
+- [#10](https://github.com/WCRP-CMIP/cmipcite/pull/10)
+
+
 ## CMIP Cite v0.2.0 (2025-11-03)
 
 ### ⚠️ Breaking Changes
