@@ -192,8 +192,11 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
     return str(tracking_id)
 
 
-def _in_value_2_pid(
-    in_value, get_tracking_id_from_path, client, multi_dataset_handling
+def _in_value_2_pid(  # type: ignore
+    in_value: str,
+    client: RESTHandleClient | None = None,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
 ) -> str:
     """Get the dataset PID from the in_value.
 
