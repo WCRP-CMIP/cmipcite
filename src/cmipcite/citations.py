@@ -226,6 +226,9 @@ def _in_value_2_pid(  # type: ignore
         Dataset PID associated with the in_value
 
     """
+    if client is None:  # pragma: no cover
+        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+
     if Path(in_value).exists():
         tracking_id = get_tracking_id_from_path(Path(in_value))
         id_in_value = tracking_id.replace("hdl:", "")
