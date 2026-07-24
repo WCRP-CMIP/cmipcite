@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 import sys
+import warnings
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable
@@ -191,6 +192,68 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
     return str(tracking_id)
 
 
+def _in_value_2_pid(
+    in_value, get_tracking_id_from_path, client, multi_dataset_handling
+):
+    """Get the dataset PID from the in_value.
+
+    Parameters
+    ----------
+    in_value
+        Input ID or path to a netCDF file
+
+    client
+        Client to use for interacting with pyhandle's REST API
+
+        If not supplied, a new client with a default handle server URL
+        is instantiated.
+
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+
+    multi_dataset_handling
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
+        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
+    Returns
+    -------
+    pid :
+        Dataset PID associated with the in_value
+
+    """
+    if Path(in_value).exists():
+        tracking_id = get_tracking_id_from_path(Path(in_value))
+        id_in_value = tracking_id.replace("hdl:", "")
+        id_is_tracking_id = True
+
+    else:
+        id_in_value = in_value.replace("hdl:", "")
+
+        agg_lev = client.get_value_from_handle(id_in_value, "AGGREGATION_LEVEL")
+        if agg_lev == "DATASET":
+            id_is_tracking_id = False
+
+        elif agg_lev == "FILE":
+            id_is_tracking_id = True
+
+        else:  # pragma: no cover
+            msg = f"The id {id_in_value} has an unknown AGGREGATION_LEVEL: {agg_lev}"
+            raise NotImplementedError(msg)
+
+    if id_is_tracking_id:
+        pid = get_dataset_pid(
+            tracking_id=id_in_value,
+            multi_dataset_handling=multi_dataset_handling,
+            client=client,
+        )
+
+    else:
+        pid = id_in_value
+    return pid
+
+
 def get_doi_and_version(  # type: ignore
     in_value: str,
     doi_granularity: DOIGranularity,
@@ -241,36 +304,28 @@ def get_doi_and_version(  # type: ignore
     if client is None:  # pragma: no cover
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-    if Path(in_value).exists():
-        tracking_id = get_tracking_id_from_path(Path(in_value))
-        id_in_value = tracking_id.replace("hdl:", "")
-        id_is_tracking_id = True
-
-    else:
-        id_in_value = in_value.replace("hdl:", "")
-
-        agg_lev = client.get_value_from_handle(id_in_value, "AGGREGATION_LEVEL")
-        if agg_lev == "DATASET":
-            id_is_tracking_id = False
-
-        elif agg_lev == "FILE":
-            id_is_tracking_id = True
-
-        else:  # pragma: no cover
-            msg = f"The id {id_in_value} has an unknown AGGREGATION_LEVEL: {agg_lev}"
-            raise NotImplementedError(msg)
-
-    if id_is_tracking_id:
-        pid = get_dataset_pid(
-            tracking_id=id_in_value,
-            multi_dataset_handling=multi_dataset_handling,
-            client=client,
-        )
-
-    else:
-        pid = id_in_value
+    pid = _in_value_2_pid(
+        in_value, get_tracking_id_from_path, client, multi_dataset_handling
+    )
 
     doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
+
+    # try to see if there is a previous version of the PID that is linked to a DOI
+    if doi_raw is None:
+        previous_pid = client.get_value_from_handle(pid, "REPLACES")
+
+        if previous_pid is not None:
+            doi_raw = client.get_value_from_handle(previous_pid, "IS_PART_OF")
+
+        if doi_raw is None:
+            msg = f"Could not find a DOI for {in_value} (pid: {pid})"
+            raise ValueError(msg)
+
+        warnings.warn(
+            f"No DOI found for {in_value} (pid: {pid}). "
+            f"Using the DOI from the previous PID version ({previous_pid}).",
+            UserWarning,
+        )
     doi = doi_raw.replace("doi:", "")
 
     if doi_granularity == DOIGranularity.MODEL:
