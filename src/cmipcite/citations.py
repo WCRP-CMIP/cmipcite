@@ -308,7 +308,7 @@ def get_doi_and_version(  # type: ignore
         client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     pid = _in_value_2_pid(
-        in_value, get_tracking_id_from_path, client, multi_dataset_handling
+        in_value, client, get_tracking_id_from_path, multi_dataset_handling
     )
 
     doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
