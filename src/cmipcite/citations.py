@@ -194,7 +194,7 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
 
 def _in_value_2_pid(
     in_value, get_tracking_id_from_path, client, multi_dataset_handling
-):
+) -> str:
     """Get the dataset PID from the in_value.
 
     Parameters
