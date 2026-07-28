@@ -42,7 +42,7 @@ This package follows the version format described in [PEP440](https://peps.pytho
 and [Semantic Versioning](https://semver.org/) to describe how the version
 should change depending on the updates to the code base.
 
-<!---[](){releasing-reference}-->
+[](){releasing-reference}
 ## Releasing
 
 Releasing is semi-automated via a CI job.

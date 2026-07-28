@@ -82,6 +82,26 @@ class FormatOption(StrEnum):
     """
 
 
+class DatasetPIDLookupStrategy(StrEnum):
+    """
+    Dataset PID lookup strategy
+
+    Strategy for handling the case when dataset PID does not have a DOI but the
+    previous PID (linked to the dataset PID with "REPLACES") does.
+    """
+
+    CURRENTONLY = "current_only"
+    """
+    Only get the DOI for the the current dataset PID.
+    """
+
+    ALLOWPREVIOUS = "allow_previous"
+    """
+    If the current dataset PID does not have a DOI, look for a DOI in the previous
+    dataset PID (if it exists in the 'REPLACES' field).
+    """
+
+
 def get_text_citation(
     doi: str, version: str, author_list_style: AuthorListStyle
 ) -> str:
@@ -260,12 +280,13 @@ def _in_value_2_pid(  # type: ignore
     return pid
 
 
-def get_doi_and_version(  # type: ignore
+def get_doi_and_version(  # type: ignore # noqa: PLR0913
     in_value: str,
     doi_granularity: DOIGranularity,
     client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
 ) -> tuple[str, str]:
     """
     Get DOI and version for a given ID or path to a netCDF file
@@ -299,6 +320,11 @@ def get_doi_and_version(  # type: ignore
 
         Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
 
+    dataset_pid_lookup
+        Whether to only look at the current dataset PID or allow looking at the
+        previous dataset PID if the current one does not have a DOI.
+
+
     Returns
     -------
     doi :
@@ -317,21 +343,22 @@ def get_doi_and_version(  # type: ignore
     doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
 
     # try to see if there is a previous version of the PID that is linked to a DOI
-    if doi_raw is None:
+    if doi_raw is None and dataset_pid_lookup == DatasetPIDLookupStrategy.ALLOWPREVIOUS:
         previous_pid = client.get_value_from_handle(pid, "REPLACES")
 
         if previous_pid is not None:
             doi_raw = client.get_value_from_handle(previous_pid, "IS_PART_OF")
-
-        if doi_raw is None:
-            msg = f"Could not find a DOI for {in_value} (pid: {pid})"
-            raise ValueError(msg)
 
         warnings.warn(
             f"No DOI found for {in_value} (pid: {pid}). "
             f"Using the DOI from the previous PID version ({previous_pid}).",
             UserWarning,
         )
+
+    if doi_raw is None:
+        msg = f"Could not find a DOI for {in_value} (pid: {pid})"
+        raise ValueError(msg)
+
     doi = doi_raw.replace("doi:", "")
 
     if doi_granularity == DOIGranularity.MODEL:
@@ -356,12 +383,13 @@ def get_doi_and_version(  # type: ignore
     return (doi, version)
 
 
-def get_citations(  # type: ignore
+def get_citations(  # type: ignore # noqa: PLR0913
     ids_or_paths: list[str],
     get_citation: Callable[[str, str], str],
     doi_granularity: DOIGranularity,
     client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
 ) -> list[str]:
     """
     Get citations that apply to the given IDs or paths
@@ -405,6 +433,11 @@ def get_citations(  # type: ignore
         i.e. is associated with more than one PID.
 
         Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
+    dataset_pid_lookup
+        Whether to only look at the current dataset PID orallow looking at the
+        previous dataset PID if the current one does not have a DOI.
+
 
     Returns
     -------
@@ -463,6 +496,7 @@ def get_citations(  # type: ignore
             client=client,
             multi_dataset_handling=multi_dataset_handling,
             doi_granularity=doi_granularity,
+            dataset_pid_lookup=dataset_pid_lookup,
         )
         for v in ids_or_paths
     ]
@@ -529,6 +563,7 @@ def get(  # noqa: PLR0913
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
     doi_granularity: DOIGranularity = DOIGranularity.MODEL,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    dataset_pid_lookup=DatasetPIDLookupStrategy.ALLOWPREVIOUS,
     handle_server_url: str = "http://hdl.handle.net/",
 ) -> list[str]:
     """
@@ -556,6 +591,12 @@ def get(  # noqa: PLR0913
 
     multi_dataset_handling
         Strategy to use when a given ID or file belongs to multiple datasets
+
+    dataset_pid_lookup
+        Whether to only look at the current dataset PID or allow looking at the
+          previous dataset PID (if it exists) if the current one does not have a DOI.
+        See [DatasetPIDLookupStrategy][(m).] for details.
+
 
     handle_server_url
         URL of the server to use for handling tracking IDs i.e. handles
@@ -601,6 +642,7 @@ def get(  # noqa: PLR0913
             ids_or_paths=in_values,
             multi_dataset_handling=multi_dataset_handling,
             doi_granularity=doi_granularity,
+            dataset_pid_lookup=dataset_pid_lookup,
             **get_citations_kwargs,
         )
     except MultipleDatasetMemberError as exc:
