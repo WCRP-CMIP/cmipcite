@@ -563,7 +563,9 @@ def get(  # noqa: PLR0913
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
     doi_granularity: DOIGranularity = DOIGranularity.MODEL,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-    dataset_pid_lookup=DatasetPIDLookupStrategy.ALLOWPREVIOUS,
+    dataset_pid_lookup: DatasetPIDLookupStrategy = (
+        DatasetPIDLookupStrategy.ALLOWPREVIOUS
+    ),
     handle_server_url: str = "http://hdl.handle.net/",
 ) -> list[str]:
     """
