@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import httpx
+import requests
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
 from cmipcite.exceptions import MissingOptionalDependencyError
@@ -212,7 +213,39 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
     return str(tracking_id)
 
 
-def _in_value_2_pid(  # type: ignore
+def get_mip_era(
+    in_value: str,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
+):
+    """
+    Get the mip_era for a given ID or path to a netCDF file
+
+    Parameters
+    ----------
+    in_value
+        Input ID or path to a netCDF file
+
+    Returns
+    -------
+    :
+        mip_era that applies to `in_value`
+    """
+    if Path(in_value).exists():
+        in_value = get_tracking_id_from_path(Path(in_value))
+
+    in_value = in_value.replace("hdl:", "")
+
+    if in_value.startswith("21.14100/"):
+        mip_era = "CMIP6"
+    elif in_value.startswith("21.14107/"):
+        mip_era = "CMIP7"
+    else:
+        raise ValueError(f"Could not determine mip_era for {in_value}")  # noqa: TRY003 #TODO: remove noqa
+
+    return mip_era
+
+
+def _in_value_CMIP6_2_pid(  # type: ignore
     in_value: str,
     client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
@@ -333,54 +366,248 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
     version :
         Version that applies to `in_value`
     """
-    if client is None:  # pragma: no cover
-        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
-
-    pid = _in_value_2_pid(
-        in_value, client, get_tracking_id_from_path, multi_dataset_handling
+    doi = get_doi(
+        in_value,
+        doi_granularity,
+        client,
+        get_tracking_id_from_path,
+        multi_dataset_handling,
+        dataset_pid_lookup,
+    )
+    version = get_version(
+        in_value,
+        client,
+        get_tracking_id_from_path,
+        multi_dataset_handling,
     )
 
-    doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
-
-    # try to see if there is a previous version of the PID that is linked to a DOI
-    if doi_raw is None and dataset_pid_lookup == DatasetPIDLookupStrategy.ALLOWPREVIOUS:
-        previous_pid = client.get_value_from_handle(pid, "REPLACES")
-
-        if previous_pid is not None:
-            doi_raw = client.get_value_from_handle(previous_pid, "IS_PART_OF")
-
-        warnings.warn(
-            f"No DOI found for {in_value} (pid: {pid}). "
-            f"Using the DOI from the previous PID version ({previous_pid}).",
-            UserWarning,
-        )
-
-    if doi_raw is None:
-        msg = f"Could not find a DOI for {in_value} (pid: {pid})"
-        raise ValueError(msg)
-
-    doi = doi_raw.replace("doi:", "")
-
-    if doi_granularity == DOIGranularity.MODEL:
-        # get model doi
-        r = httpx.get(
-            f"https://api.datacite.org/dois/{doi}",
-            follow_redirects=True,
-        )
-        doi = r.raise_for_status().json()["data"]["attributes"]["container"][
-            "identifier"
-        ]
-
-    elif doi_granularity == DOIGranularity.EXPERIMENT:
-        # doi is already in the desired form
-        pass
-
-    else:  # pragma: no cover
-        raise NotImplementedError(doi_granularity)
-
-    version = client.get_value_from_handle(pid, "VERSION_NUMBER")
-
     return (doi, version)
+
+
+def get_version(  # type: ignore
+    in_value: str,
+    client: RESTHandleClient | None = None,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+) -> tuple[str, str]:
+    """
+    Get DOI and version for a given ID or path to a netCDF file
+
+    Parameters
+    ----------
+    in_value
+        Input ID or path to a netCDF file
+
+    client
+        Client to use for interacting with pyhandle's REST API
+
+        If not supplied, a new client with a default handle server URL
+        is instantiated.
+
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+
+    multi_dataset_handling
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
+        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
+    Returns
+    -------
+    version :
+        Version that applies to `in_value`
+    """
+    if get_mip_era(in_value, get_tracking_id_from_path) == "CMIP6":
+        if client is None:  # pragma: no cover
+            client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+
+        pid = _in_value_CMIP6_2_pid(
+            in_value, client, get_tracking_id_from_path, multi_dataset_handling
+        )
+
+        version = client.get_value_from_handle(pid, "VERSION_NUMBER")
+
+        # TODO: see if we can do cmip6 like cmip7
+
+    else:  # CMIP7
+        if Path(in_value).exists():
+            in_value = get_tracking_id_from_path(Path(in_value))
+        url = "https://transaction.east.esgf.io/collections/CMIP7/items"
+
+        params = {
+            "filter": (
+                f"cmip7:tracking_id = '{in_value}' " f"OR cmip7:pid = '{in_value}'"
+            ),
+            "filter-lang": "cql2-text",
+            "limit": 100,
+        }
+
+        r = requests.get(url, params=params, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        version = data["features"][0]["properties"]["version"]
+        # TODO: handle [0] more carefully
+
+    return version
+
+
+def get_doi(  # type: ignore # noqa: PLR0913
+    in_value: str,
+    doi_granularity: DOIGranularity,
+    client: RESTHandleClient | None = None,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
+) -> tuple[str, str]:
+    """
+    Get DOI and version for a given ID or path to a netCDF file
+
+    Parameters
+    ----------
+    in_value
+        Input ID or path to a netCDF file
+
+    doi_granularity
+        Granularity of DOI to retrieve.
+
+        We use the 'lowest-level' from the DRS as a short-hand.
+        "experiment" is short for mip-model-experiment.
+        "model" is short for mip-model.
+
+        See [DOIGranularity][(m).] for details.
+
+    client
+        Client to use for interacting with pyhandle's REST API
+
+        If not supplied, a new client with a default handle server URL
+        is instantiated.
+
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+
+    multi_dataset_handling
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
+        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
+    dataset_pid_lookup
+        Whether to only look at the current dataset PID or allow looking at the
+        previous dataset PID if the current one does not have a DOI.
+
+
+    Returns
+    -------
+    doi :
+        DOI that applies to `in_value`
+
+    version :
+        Version that applies to `in_value`
+    """
+    if get_mip_era(in_value, get_tracking_id_from_path) == "CMIP6":
+        if client is None:  # pragma: no cover
+            client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+
+        pid = _in_value_CMIP6_2_pid(
+            in_value, client, get_tracking_id_from_path, multi_dataset_handling
+        )
+
+        doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
+
+        # try to see if there is a previous version of the PID that is linked to a DOI
+        if (
+            doi_raw is None
+            and dataset_pid_lookup == DatasetPIDLookupStrategy.ALLOWPREVIOUS
+        ):
+            previous_pid = client.get_value_from_handle(pid, "REPLACES")
+
+            if previous_pid is not None:
+                doi_raw = client.get_value_from_handle(previous_pid, "IS_PART_OF")
+
+            warnings.warn(
+                f"No DOI found for {in_value} (pid: {pid}). "
+                f"Using the DOI from the previous PID version ({previous_pid}).",
+                UserWarning,
+            )
+
+        if doi_raw is None:
+            msg = f"Could not find a DOI for {in_value} (pid: {pid})"
+            raise ValueError(msg)
+
+        doi = doi_raw.replace("doi:", "")
+
+        if doi_granularity == DOIGranularity.MODEL:
+            # get model doi
+            r = httpx.get(
+                f"https://api.datacite.org/dois/{doi}",
+                follow_redirects=True,
+            )
+            doi = r.raise_for_status().json()["data"]["attributes"]["container"][
+                "identifier"
+            ]
+
+        elif doi_granularity == DOIGranularity.EXPERIMENT:
+            # doi is already in the desired form
+            pass
+
+        else:  # pragma: no cover
+            raise NotImplementedError(doi_granularity)
+
+    else:  # CMIP7
+        in_attrs = _get_CMIP7_attrs(in_value)
+        url = f"https://cmip7-citations.ceda.ac.uk/citation/{in_attrs['project_id']}.{in_attrs['activity_id']}.{in_attrs['institution_id']}.{in_attrs['experiment_id']}"
+        headers = {"Accept": "application/json"}
+        response = requests.get(url, headers=headers, timeout=5)
+        print(response.json()["doi_url"])
+
+    return doi
+
+
+def _get_CMIP7_attrs(in_value: str) -> dict[str, Any]:
+    """
+    Get attrs from input.
+
+    From in_value (tracking_id, PID or path to a netCDF file),
+    get the CMIP7 attributes project_id, activity_id, institution_id and experiment_id.
+
+    """
+    if Path(in_value).exists():
+        try:
+            import netCDF4
+        except ImportError as exc:
+            raise MissingOptionalDependencyError(
+                "get_tracking_id_from_cmip_netcdf", requirement="netCDF4"
+            ) from exc
+
+        with netCDF4.Dataset(in_value) as ds:
+            attrs = {
+                "project_id": ds.getncattr("project_id"),
+                "activity_id": ds.getncattr("activity_id"),
+                "institution_id": ds.getncattr("institution_id"),
+                "experiment_id": ds.getncattr("experiment_id"),
+            }
+    else:
+        # in_value is a tracking ID or PID
+        # For CMIP7, we can use the ESGF API to get the attributes
+        url = (
+            "https://transaction.east.esgf.io/collections/CMIP7/items?"
+            f"filter=cmip7:tracking_id='{in_value}' OR cmip7:pid='{in_value}'&"
+            "filter-lang=cql2-text&limit=1"
+        )
+        r = requests.get(url, timeout=5)
+        r.raise_for_status()
+        data = r.json()
+        # TODO: make exception class
+        # if len(data["features"]) == 0:
+        #     raise ValueError(f"No CMIP7 dataset found for {in_value}")
+        attrs = {
+            "project_id": data["features"][0]["properties"]["project_id"],
+            "activity_id": data["features"][0]["properties"]["activity_id"],
+            "institution_id": data["features"][0]["properties"]["institution_id"],
+            "experiment_id": data["features"][0]["properties"]["experiment_id"],
+        }
+    return attrs
 
 
 def get_citations(  # type: ignore # noqa: PLR0913
