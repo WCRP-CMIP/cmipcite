@@ -562,6 +562,7 @@ def get_doi(  # type: ignore # noqa: PLR0913
         doi = response.json().get("doi_url", None)
 
         # TODO: investigate citeas field in the STAC instead that might also  work ?
+        # data["features"][0]['links'][4]['href']
 
     return doi
 
