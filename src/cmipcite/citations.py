@@ -48,7 +48,8 @@ class DOIGranularity(StrEnum):
     """
     DOI granularity
 
-    CMIP data can be aggregated at different granularities.
+    This is only valid for CMIP6. All CMIP7 citations are at the experiment granularity.
+    CMIP6 data can be aggregated at different granularities.
     Data citations are designated on data aggregations belonging to a model
     contribution to a MIP (or activity_id) and on data belonging to an experiment
     contributed by a specific model:
@@ -80,6 +81,11 @@ class FormatOption(StrEnum):
     TEXT = "text"
     """
     Plain text file
+    """
+
+    LATEXTABLE = "latextable"
+    """
+    Text file with latex table
     """
 
 
@@ -254,7 +260,8 @@ def get_mip_era(
     elif in_value.startswith("21.14107/"):
         mip_era = "CMIP7"
     else:
-        raise ValueError(f"Could not determine mip_era for {in_value}")  # noqa: TRY003 #TODO: remove noqa
+        message = f"Could not determine mip_era for {in_value}. "
+        raise ValueError(message)
 
     return mip_era
 
@@ -327,11 +334,10 @@ def _in_value_CMIP6_2_pid(  # type: ignore
     return pid
 
 
-def get_doi_and_version(  # type: ignore # noqa: PLR0913
+def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     in_value: str,
     doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
-    client: RESTHandleClient
-    | None = None,  # TODO: change name everywhere bc not used in CMIP7
+    client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
@@ -345,7 +351,6 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
         Input ID or path to a netCDF file
 
     doi_granularity
-        ONLY VALID FOR CMIP6.
         Granularity of DOI to retrieve.
 
         We use the 'lowest-level' from the DRS as a short-hand.
@@ -355,7 +360,6 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
         See [DOIGranularity][(m).] for details.
 
     client
-        ONLY VALID FOR CMIP6.
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
@@ -383,56 +387,214 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
     version :
         Version that applies to `in_value`
     """
-    if get_mip_era(in_value, get_tracking_id_from_path) == "CMIP6":
-        if client is None:  # pragma: no cover
-            client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+    if client is None:  # pragma: no cover
+        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-        pid = _in_value_CMIP6_2_pid(
-            in_value, client, get_tracking_id_from_path, multi_dataset_handling
+    pid = _in_value_CMIP6_2_pid(
+        in_value, client, get_tracking_id_from_path, multi_dataset_handling
+    )
+
+    doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
+
+    # try to see if there is a previous version of the PID that is linked to a DOI
+    if doi_raw is None and dataset_pid_lookup == DatasetPIDLookupStrategy.ALLOWPREVIOUS:
+        previous_pid = client.get_value_from_handle(pid, "REPLACES")
+
+        if previous_pid is not None:
+            doi_raw = client.get_value_from_handle(previous_pid, "IS_PART_OF")
+
+        warnings.warn(
+            f"No DOI found for {in_value} (pid: {pid}). "
+            f"Using the DOI from the previous PID version ({previous_pid}).",
+            UserWarning,
         )
 
-        doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
+    if doi_raw is None:
+        msg = f"Could not find a DOI for {in_value} (pid: {pid})"
+        raise ValueError(msg)
 
-        # try to see if there is a previous version of the PID that is linked to a DOI
-        if (
-            doi_raw is None
-            and dataset_pid_lookup == DatasetPIDLookupStrategy.ALLOWPREVIOUS
-        ):
-            previous_pid = client.get_value_from_handle(pid, "REPLACES")
+    doi = doi_raw.replace("doi:", "")
 
-            if previous_pid is not None:
-                doi_raw = client.get_value_from_handle(previous_pid, "IS_PART_OF")
+    if doi_granularity == DOIGranularity.MODEL:
+        # get model doi
+        r = httpx.get(
+            f"https://api.datacite.org/dois/{doi}",
+            follow_redirects=True,
+        )
+        doi = r.raise_for_status().json()["data"]["attributes"]["container"][
+            "identifier"
+        ]
 
-            warnings.warn(
-                f"No DOI found for {in_value} (pid: {pid}). "
-                f"Using the DOI from the previous PID version ({previous_pid}).",
-                UserWarning,
-            )
+    elif doi_granularity == DOIGranularity.EXPERIMENT:
+        # doi is already in the desired form
+        pass
 
-        if doi_raw is None:
-            msg = f"Could not find a DOI for {in_value} (pid: {pid})"
-            raise ValueError(msg)
+    else:  # pragma: no cover
+        raise NotImplementedError(doi_granularity)
 
-        doi = doi_raw.replace("doi:", "")
+    version = client.get_value_from_handle(pid, "VERSION_NUMBER")
 
-        if doi_granularity == DOIGranularity.MODEL:
-            # get model doi
-            r = httpx.get(
-                f"https://api.datacite.org/dois/{doi}",
-                follow_redirects=True,
-            )
-            doi = r.raise_for_status().json()["data"]["attributes"]["container"][
-                "identifier"
-            ]
+    return (doi, version)
 
-        elif doi_granularity == DOIGranularity.EXPERIMENT:
-            # doi is already in the desired form
-            pass
 
-        else:  # pragma: no cover
-            raise NotImplementedError(doi_granularity)
+def get_doi_and_version_CMIP7(  # type: ignore
+    in_value: str,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
+) -> tuple[str, str]:
+    """
+    Get DOI and version for a given ID or path to a netCDF file
 
-        version = client.get_value_from_handle(pid, "VERSION_NUMBER")
+    Parameters
+    ----------
+    in_value
+        Input ID or path to a netCDF file
+
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+
+    multi_dataset_handling
+        DOESN'T WORK FOR CMIP7 YET
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
+        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
+    dataset_pid_lookup
+        Whether to only look at the current dataset PID or allow looking at the
+        previous dataset PID if the current one does not have a DOI.
+
+
+    Returns
+    -------
+    doi :
+        DOI that applies to `in_value`
+
+    version :
+        Version that applies to `in_value`
+    """
+    if Path(in_value).exists():
+        in_value = get_tracking_id_from_path(Path(in_value))
+
+    url = "https://transaction.east.esgf.io/collections/CMIP7/items"
+
+    params = {
+        "filter": (f"cmip7:tracking_id = '{in_value}' " f"OR cmip7:pid = '{in_value}'"),
+        "filter-lang": "cql2-text",
+        "limit": 100,
+    }
+
+    r = requests.get(url, params=params, timeout=5)
+    r.raise_for_status()
+    STACdata = r.json()
+
+    if len(STACdata["features"]) == 0:
+        message = f"No CMIP7 dataset found for {in_value}"
+        raise ValueError(message)
+    elif len(STACdata["features"]) > 1:
+        # TODO: do something smarter here. like multi_dataset_handling
+        # the problem is that I don't know what the order is.
+        # is the latest first or last? is it even consistent?
+        warnings.warn(
+            f"More than one feature found for {in_value}. Using the first one.",
+            UserWarning,
+        )
+    STACfeatures = next(STACdata["features"])
+
+    # get version
+    version = STACfeatures["properties"]["version"]
+
+    # get the citation service url from STAC
+    # and  get the doi_urlfrom the the citation service
+    cite_as_links = [x for x in STACfeatures["links"] if x["rel"] == "cite-as"]
+    if len(cite_as_links) == 0:
+        message = f"No cite-as link found for {in_value}"
+        raise ValueError(message)
+    # TODO: is there a possibilty that there would be more than one cite-as link?
+    elif len(cite_as_links) > 1:
+        warnings.warn(
+            f"More than one cite-as link found for {in_value}. Using the first one.",
+            UserWarning,
+        )
+    cite_as_link = next(cite_as_links)
+    responsecitation = requests.get(cite_as_link["href"], timeout=5)
+    responsecitation.raise_for_status()
+    CITEdata = responsecitation.json()
+
+    doi = CITEdata["doi_url"]
+    # TODO: check format of doi when they exist
+    doi = doi.replace("https://doi.org/", "").upper()
+
+    return (doi, version)
+
+
+def get_doi_and_version(  # type: ignore # noqa: PLR0913
+    in_value: str,
+    doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
+    client: RESTHandleClient | None = None,  # TODO: change name to CMIP6client?
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
+) -> tuple[str, str]:
+    """
+    Get DOI and version for a given ID or path to a netCDF file
+
+    Parameters
+    ----------
+    in_value
+        Input ID or path to a netCDF file
+
+    doi_granularity
+        ONLY VALID FOR CMIP6.
+        Granularity of DOI to retrieve.
+
+        We use the 'lowest-level' from the DRS as a short-hand.
+        "experiment" is short for mip-model-experiment.
+        "model" is short for mip-model.
+        All CMIP7 dois are at the experiment level.
+
+        See [DOIGranularity][(m).] for details.
+
+    client
+        ONLY VALID FOR CMIP6.
+        Client to use for interacting with pyhandle's REST API
+
+        If not supplied, a new client with a default handle server URL
+        is instantiated.
+
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+
+    multi_dataset_handling
+        DOESN'T WORK FOR CMIP7 YET
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
+        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
+    dataset_pid_lookup
+        Whether to only look at the current dataset PID or allow looking at the
+        previous dataset PID if the current one does not have a DOI.
+
+
+    Returns
+    -------
+    doi :
+        DOI that applies to `in_value`
+
+    version :
+        Version that applies to `in_value`
+    """
+    if get_mip_era(in_value, get_tracking_id_from_path) == "CMIP6":
+        (doi, version) = _get_doi_and_version_CMIP6(
+            in_value,
+            doi_granularity=doi_granularity,
+            client=client,
+            get_tracking_id_from_path=get_tracking_id_from_path,
+            multi_dataset_handling=multi_dataset_handling,
+            dataset_pid_lookup=dataset_pid_lookup,
+        )
 
     else:  # CMIP7
         if client is not None:
@@ -447,37 +609,12 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
                 " Ignoring the doi_granularity parameter.",
                 UserWarning,
             )
-        if Path(in_value).exists():
-            in_value = get_tracking_id_from_path(Path(in_value))
-        url = "https://transaction.east.esgf.io/collections/CMIP7/items"
-
-        params = {
-            "filter": (
-                f"cmip7:tracking_id = '{in_value}' " f"OR cmip7:pid = '{in_value}'"
-            ),
-            "filter-lang": "cql2-text",
-            "limit": 100,
-        }
-
-        r = requests.get(url, params=params, timeout=5)
-        r.raise_for_status()
-        STACdata = r.json()
-
-        # TODO: handle [0] more carefully
-        # TODO: what to do if more than 1 ?
-        STACfeatures = STACdata["features"][0]
-
-        version = STACfeatures["properties"]["version"]
-
-        # get the DOI from the STAC data
-        # TODO: handle [0] (next) more carefully
-        cite_as_link = next([x for x in STACfeatures["links"] if x["rel"] == "cite-as"])
-        responsecitation = requests.get(cite_as_link["href"], timeout=5)
-        responsecitation.raise_for_status()
-        CITEdata = responsecitation.json()
-
-        doi = CITEdata["doi_url"]
-        # TODO: check format of doi when they exist
+        (doi, version) = get_doi_and_version_CMIP7(
+            in_value,
+            get_tracking_id_from_path=get_tracking_id_from_path,
+            multi_dataset_handling=multi_dataset_handling,
+            dataset_pid_lookup=dataset_pid_lookup,
+        )
 
     return (doi, version)
 
@@ -512,16 +649,17 @@ def get_citations(  # type: ignore # noqa: PLR0913
         Paths should point to a CMIP file with a `tracking_id` global attribute.
 
     get_citation
-        Function which, given a DOI and a version, produces a citation
+        Function which, given a DOI and a version, produces a citation or a table.
 
         For example, [get_bibtex_citation][(m).].
 
     doi_granularity
-        Granularity of DOI to retrieve.
+        Only valid for CMIP6 data. Granularity of DOI to retrieve.
 
         See [DOIGranularity][(m).] for details.
 
     client
+        Only valid for CMIP6 data.
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
@@ -607,17 +745,10 @@ def get_citations(  # type: ignore # noqa: PLR0913
     return res
 
 
-# TODO: do other format also, md ?
+# TODO: do other formats also, md ?
 def get_latex_table(  # noqa PLR0913 # TODO: come back to fix later
     ids_or_paths: list[str],
-    columns: list[str] = [
-        "source_id",
-        "institution_id",
-        "experiment_id",
-        "variable_id",
-        "version",
-        "reference",
-    ],
+    table_columns: list[str] | None = None,
     client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     doi_granularity: DOIGranularity | None = None,
@@ -676,9 +807,9 @@ def get_latex_table(  # noqa PLR0913 # TODO: come back to fix later
 
     """
     columns_title = [
-        x.capitalize().replace("_id", "").replace("doi", "DOI") for x in columns
+        x.capitalize().replace("_id", "").replace("doi", "DOI") for x in table_columns
     ]
-    ncol = len(columns)
+    ncol = len(table_columns)
 
     table = (
         "\\begin{center}\n\\begin{tabular}{ "
@@ -712,13 +843,13 @@ def get_latex_table(  # noqa PLR0913 # TODO: come back to fix later
     ]
 
     # eget the rest of the attrs
-    attrs_col = [x for x in columns if x not in ["version", "reference", "doi"]]
+    attrs_col = [x for x in table_columns if x not in ["version", "reference", "doi"]]
     in_attrs = [_get_attrs(v, attrs_col) for v in ids_or_paths]
 
     combined = [{**a, **b, **c} for a, b, c in zip(in_attrs, doi_versions, bibtex_ref)]
 
     # only keep the columns wanted
-    combined_tuple = [tuple(d[k] for k in columns) for d in combined]
+    combined_tuple = [tuple(d[k] for k in table_columns) for d in combined]
 
     # only keep unique rows
     combined_tuple = set(combined_tuple)
@@ -754,6 +885,8 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
             attrs = {x: ds.getncattr(x) for x in columns}
 
     else:  # in_value is a tracking ID or PID
+        # TODO: calling stack again here,
+        # would it be better to get this info at the same time as doi and version ?
         mip_era = get_mip_era(in_value)
 
         url = (
@@ -764,13 +897,23 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
         )
         r = requests.get(url, timeout=5)
         r.raise_for_status()
-        data = r.json()
-        # TODO: make exception class
-        # if len(data["features"]) == 0:
-        #     raise ValueError(f"No CMIP7 dataset found for {in_value}")
+        STACdata = r.json()
+
+        if len(STACdata["features"]) == 0:
+            message = f"No CMIP7 dataset found for {in_value}"
+            raise ValueError(message)
+        elif len(STACdata["features"]) > 1:
+            # TODO: do something smarter here. like multi_dataset_handling
+            # the problem is that I don't know what the order is.
+            # is the latest first or last? is it even consistent?
+            warnings.warn(
+                f"More than one feature found for {in_value}. Using the first one.",
+                UserWarning,
+            )
+        STACfeatures = next(STACdata["features"])
+
         attrs = {
-            x: data["features"][0]["properties"][f"{mip_era.lower()}:{x}"]
-            for x in columns
+            x: STACfeatures["properties"][f"{mip_era.lower()}:{x}"] for x in columns
         }
     return attrs
 
@@ -799,6 +942,7 @@ def translate_get_args_to_get_citations_kwargs(
 
     handle_server_url
         URL of the server to use for handling tracking IDs i.e. handles
+
 
     Returns
     -------
@@ -834,6 +978,14 @@ def get(  # noqa: PLR0913
         DatasetPIDLookupStrategy.ALLOWPREVIOUS
     ),
     handle_server_url: str = "http://hdl.handle.net/",
+    table_columns: list[str] | None = [
+        "source_id",
+        "institution_id",
+        "experiment_id",
+        "variable_id",
+        "version",
+        "reference",
+    ],
 ) -> list[str]:
     """
     Get citations without duplicates from CMIP files or tracking IDs or PIDs
@@ -854,7 +1006,7 @@ def get(  # noqa: PLR0913
         the author list should be long (all names) or short (et al.)
 
     doi_granularity
-        Granularity of DOI to retrieve.
+        Only valid for CMIP6 data. Granularity of DOI to retrieve.
 
         See [DOIGranularity][(m).] for details.
 
@@ -866,11 +1018,14 @@ def get(  # noqa: PLR0913
           previous dataset PID (if it exists) if the current one does not have a DOI.
         See [DatasetPIDLookupStrategy][(m).] for details.
 
-
     handle_server_url
+        Only valid for CMIP6 data.
         URL of the server to use for handling tracking IDs i.e. handles
         If not supplied, a new client with a default handle server URL
         is instantiated.
+
+    table_columns
+        Columns to include in the table if format is LATEXTABLE
 
     Returns
     -------
@@ -900,33 +1055,44 @@ def get(  # noqa: PLR0913
         given experiment.
     This is controlled by `doi_granularity`.
     """
-    get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
-        format=format,
-        author_list_style=author_list_style,
-        handle_server_url=handle_server_url,
-    )
-
-    try:
-        citations = get_citations(
+    if format == FormatOption.LATEXTABLE:
+        table = get_latex_table(
             ids_or_paths=in_values,
+            table_columns=table_columns,
             multi_dataset_handling=multi_dataset_handling,
             doi_granularity=doi_granularity,
             dataset_pid_lookup=dataset_pid_lookup,
-            **get_citations_kwargs,
         )
-    except MultipleDatasetMemberError as exc:
-        msg = (
-            "One of your input values is a member of more than one dataset. "
-            "You can resolve this by passing a value for the "
-            "`multi_dataset_handling` argument. "
-            "In most cases, adding "
-            "`from cmipcite.tracking_id import MultiDatasetHandlingStrategy` "
-            "and then using "
-            "`multi_dataset_handling=MultiDatasetHandlingStrategy.LATEST` "
-            "is what you will want "
-            "(this will give you the reference to the last published dataset "
-            "that includes your ID)."
-        )
-        raise ValueError(msg) from exc
+        return table
 
-    return citations
+    else:
+        get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
+            format=format,
+            author_list_style=author_list_style,
+            handle_server_url=handle_server_url,
+        )
+
+        try:
+            citations = get_citations(
+                ids_or_paths=in_values,
+                multi_dataset_handling=multi_dataset_handling,
+                doi_granularity=doi_granularity,
+                dataset_pid_lookup=dataset_pid_lookup,
+                **get_citations_kwargs,
+            )
+        except MultipleDatasetMemberError as exc:
+            msg = (
+                "One of your input values is a member of more than one dataset. "
+                "You can resolve this by passing a value for the "
+                "`multi_dataset_handling` argument. "
+                "In most cases, adding "
+                "`from cmipcite.tracking_id import MultiDatasetHandlingStrategy` "
+                "and then using "
+                "`multi_dataset_handling=MultiDatasetHandlingStrategy.LATEST` "
+                "is what you will want "
+                "(this will give you the reference to the last published dataset "
+                "that includes your ID)."
+            )
+            raise ValueError(msg) from exc
+
+        return citations
