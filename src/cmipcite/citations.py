@@ -556,10 +556,12 @@ def get_doi(  # type: ignore # noqa: PLR0913
 
     else:  # CMIP7
         in_attrs = _get_CMIP7_attrs(in_value)
-        url = f"https://cmip7-citations.ceda.ac.uk/citation/{in_attrs['project_id']}.{in_attrs['activity_id']}.{in_attrs['institution_id']}.{in_attrs['experiment_id']}"
+        url = f"https://cmip7-citations.ceda.ac.uk/citation/{in_attrs['project_id']}.{in_attrs['activity_id']}.{in_attrs['institution_id']}.{in_attrs['source_id']}.{in_attrs['experiment_id']}"
         headers = {"Accept": "application/json"}
         response = requests.get(url, headers=headers, timeout=5)
-        print(response.json()["doi_url"])
+        doi = response.json().get("doi_url", None)
+
+        # TODO: investigate citeas field in the STAC instead that might also  work ?
 
     return doi
 
@@ -569,7 +571,8 @@ def _get_CMIP7_attrs(in_value: str) -> dict[str, Any]:
     Get attrs from input.
 
     From in_value (tracking_id, PID or path to a netCDF file),
-    get the CMIP7 attributes project_id, activity_id, institution_id and experiment_id.
+    get the CMIP7 attributes project_id, activity_id, institution_id, source_id and
+    experiment_id.
 
     """
     if Path(in_value).exists():
@@ -585,6 +588,7 @@ def _get_CMIP7_attrs(in_value: str) -> dict[str, Any]:
                 "project_id": ds.getncattr("project_id"),
                 "activity_id": ds.getncattr("activity_id"),
                 "institution_id": ds.getncattr("institution_id"),
+                "source_id": ds.getncattr("source_id"),
                 "experiment_id": ds.getncattr("experiment_id"),
             }
     else:
@@ -602,10 +606,11 @@ def _get_CMIP7_attrs(in_value: str) -> dict[str, Any]:
         # if len(data["features"]) == 0:
         #     raise ValueError(f"No CMIP7 dataset found for {in_value}")
         attrs = {
-            "project_id": data["features"][0]["properties"]["project_id"],
-            "activity_id": data["features"][0]["properties"]["activity_id"],
-            "institution_id": data["features"][0]["properties"]["institution_id"],
-            "experiment_id": data["features"][0]["properties"]["experiment_id"],
+            "project_id": data["features"][0]["properties"]["project"],
+            "activity_id": data["features"][0]["properties"]["cmip7:activity_id"],
+            "institution_id": data["features"][0]["properties"]["cmip7:institution_id"],
+            "source_id": data["features"][0]["properties"]["cmip7:source_id"],
+            "experiment_id": data["features"][0]["properties"]["cmip7:experiment_id"],
         }
     return attrs
 
