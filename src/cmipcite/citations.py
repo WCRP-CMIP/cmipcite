@@ -500,7 +500,7 @@ def get_doi_and_version_CMIP7(  # type: ignore
             f"More than one feature found for {in_value}. Using the first one.",
             UserWarning,
         )
-    STACfeatures = next(STACdata["features"])
+    STACfeatures = STACdata["features"][0]
 
     # get version
     version = STACfeatures["properties"]["version"]
@@ -517,7 +517,7 @@ def get_doi_and_version_CMIP7(  # type: ignore
             f"More than one cite-as link found for {in_value}. Using the first one.",
             UserWarning,
         )
-    cite_as_link = next(cite_as_links)
+    cite_as_link = cite_as_links[0]
     responsecitation = requests.get(cite_as_link["href"], timeout=5)
     responsecitation.raise_for_status()
     CITEdata = responsecitation.json()
@@ -807,7 +807,7 @@ def get_latex_table(  # noqa PLR0913 # TODO: come back to fix later
 
     """
     columns_title = [
-        x.capitalize().replace("_id", "").replace("doi", "DOI") for x in table_columns
+        x.capitalize().replace("_id", "").replace("Doi", "DOI") for x in table_columns
     ]
     ncol = len(table_columns)
 
@@ -900,7 +900,7 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
         STACdata = r.json()
 
         if len(STACdata["features"]) == 0:
-            message = f"No CMIP7 dataset found for {in_value}"
+            message = f"No {mip_era} dataset found for {in_value}"
             raise ValueError(message)
         elif len(STACdata["features"]) > 1:
             # TODO: do something smarter here. like multi_dataset_handling
@@ -910,7 +910,7 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
                 f"More than one feature found for {in_value}. Using the first one.",
                 UserWarning,
             )
-        STACfeatures = next(STACdata["features"])
+        STACfeatures = STACdata["features"][0]
 
         attrs = {
             x: STACfeatures["properties"][f"{mip_era.lower()}:{x}"] for x in columns
