@@ -268,7 +268,7 @@ def get_mip_era(
 
 def _in_value_CMIP6_2_pid(  # type: ignore
     in_value: str,
-    client: RESTHandleClient | None = None,
+    CMIP6client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
 ) -> str:
@@ -279,7 +279,7 @@ def _in_value_CMIP6_2_pid(  # type: ignore
     in_value
         Input ID or path to a netCDF file
 
-    client
+    CMIP6client
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
@@ -300,8 +300,8 @@ def _in_value_CMIP6_2_pid(  # type: ignore
         Dataset PID associated with the in_value
 
     """
-    if client is None:  # pragma: no cover
-        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+    if CMIP6client is None:  # pragma: no cover
+        CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     if Path(in_value).exists():
         tracking_id = get_tracking_id_from_path(Path(in_value))
@@ -311,7 +311,7 @@ def _in_value_CMIP6_2_pid(  # type: ignore
     else:
         id_in_value = in_value.replace("hdl:", "")
 
-        agg_lev = client.get_value_from_handle(id_in_value, "AGGREGATION_LEVEL")
+        agg_lev = CMIP6client.get_value_from_handle(id_in_value, "AGGREGATION_LEVEL")
         if agg_lev == "DATASET":
             id_is_tracking_id = False
 
@@ -326,7 +326,7 @@ def _in_value_CMIP6_2_pid(  # type: ignore
         pid = get_dataset_pid(
             tracking_id=id_in_value,
             multi_dataset_handling=multi_dataset_handling,
-            client=client,
+            CMIP6client=CMIP6client,
         )
 
     else:
@@ -334,10 +334,12 @@ def _in_value_CMIP6_2_pid(  # type: ignore
     return pid
 
 
+# we can't use the CMIP6 STAC like CMIP7 because some of the data seems to be missing
+# (ex. hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b)
 def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     in_value: str,
     doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
-    client: RESTHandleClient | None = None,
+    CMIP6client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
@@ -359,7 +361,7 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
 
         See [DOIGranularity][(m).] for details.
 
-    client
+    CMIP6client
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
@@ -387,21 +389,21 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     version :
         Version that applies to `in_value`
     """
-    if client is None:  # pragma: no cover
-        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+    if CMIP6client is None:  # pragma: no cover
+        CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     pid = _in_value_CMIP6_2_pid(
-        in_value, client, get_tracking_id_from_path, multi_dataset_handling
+        in_value, CMIP6client, get_tracking_id_from_path, multi_dataset_handling
     )
 
-    doi_raw = client.get_value_from_handle(pid, "IS_PART_OF")
+    doi_raw = CMIP6client.get_value_from_handle(pid, "IS_PART_OF")
 
     # try to see if there is a previous version of the PID that is linked to a DOI
     if doi_raw is None and dataset_pid_lookup == DatasetPIDLookupStrategy.ALLOWPREVIOUS:
-        previous_pid = client.get_value_from_handle(pid, "REPLACES")
+        previous_pid = CMIP6client.get_value_from_handle(pid, "REPLACES")
 
         if previous_pid is not None:
-            doi_raw = client.get_value_from_handle(previous_pid, "IS_PART_OF")
+            doi_raw = CMIP6client.get_value_from_handle(previous_pid, "IS_PART_OF")
 
         warnings.warn(
             f"No DOI found for {in_value} (pid: {pid}). "
@@ -432,12 +434,12 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     else:  # pragma: no cover
         raise NotImplementedError(doi_granularity)
 
-    version = client.get_value_from_handle(pid, "VERSION_NUMBER")
+    version = CMIP6client.get_value_from_handle(pid, "VERSION_NUMBER")
 
     return (doi, version)
 
 
-def get_doi_and_version_CMIP7(  # type: ignore
+def _get_doi_and_version_CMIP7(  # type: ignore
     in_value: str,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
@@ -480,7 +482,7 @@ def get_doi_and_version_CMIP7(  # type: ignore
     url = "https://transaction.east.esgf.io/collections/CMIP7/items"
 
     params = {
-        "filter": (f"cmip7:tracking_id = '{in_value}' " f"OR cmip7:pid = '{in_value}'"),
+        "filter": (f"cmip7:tracking_id = '{in_value}' OR cmip7:pid = '{in_value}'"),
         "filter-lang": "cql2-text",
         "limit": 100,
     }
@@ -532,7 +534,7 @@ def get_doi_and_version_CMIP7(  # type: ignore
 def get_doi_and_version(  # type: ignore # noqa: PLR0913
     in_value: str,
     doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
-    client: RESTHandleClient | None = None,  # TODO: change name to CMIP6client?
+    CMIP6client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
@@ -556,7 +558,7 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
 
         See [DOIGranularity][(m).] for details.
 
-    client
+    CMIP6client
         ONLY VALID FOR CMIP6.
         Client to use for interacting with pyhandle's REST API
 
@@ -590,16 +592,16 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
         (doi, version) = _get_doi_and_version_CMIP6(
             in_value,
             doi_granularity=doi_granularity,
-            client=client,
+            CMIP6client=CMIP6client,
             get_tracking_id_from_path=get_tracking_id_from_path,
             multi_dataset_handling=multi_dataset_handling,
             dataset_pid_lookup=dataset_pid_lookup,
         )
 
     else:  # CMIP7
-        if client is not None:
+        if CMIP6client is not None:
             warnings.warn(
-                "Client is not used for CMIP7. Ignoring the client parameter.",
+                "CMIP6client is not used for CMIP7. Ignoring the client parameter.",
                 UserWarning,
             )
         if doi_granularity is not None:
@@ -609,7 +611,7 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
                 " Ignoring the doi_granularity parameter.",
                 UserWarning,
             )
-        (doi, version) = get_doi_and_version_CMIP7(
+        (doi, version) = _get_doi_and_version_CMIP7(
             in_value,
             get_tracking_id_from_path=get_tracking_id_from_path,
             multi_dataset_handling=multi_dataset_handling,
@@ -623,7 +625,7 @@ def get_citations(  # type: ignore # noqa: PLR0913
     ids_or_paths: list[str],
     get_citation: Callable[[str, str], str],
     doi_granularity: DOIGranularity,
-    client: RESTHandleClient | None = None,
+    CMIP6client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
 ) -> list[str]:
@@ -658,7 +660,7 @@ def get_citations(  # type: ignore # noqa: PLR0913
 
         See [DOIGranularity][(m).] for details.
 
-    client
+    CMIP6client
         Only valid for CMIP6 data.
         Client to use for interacting with pyhandle's REST API
 
@@ -724,13 +726,13 @@ def get_citations(  # type: ignore # noqa: PLR0913
       copyright = {Creative Commons Attribution 4.0 International}
     }
     """  # noqa: E501
-    if client is None:  # pragma: no cover
-        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+    if CMIP6client is None:  # pragma: no cover
+        CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     doi_versions = [
         get_doi_and_version(
             v,
-            client=client,
+            CMIP6client=CMIP6client,
             multi_dataset_handling=multi_dataset_handling,
             doi_granularity=doi_granularity,
             dataset_pid_lookup=dataset_pid_lookup,
@@ -746,10 +748,10 @@ def get_citations(  # type: ignore # noqa: PLR0913
 
 
 # TODO: do other formats also, md ?
-def get_latex_table(  # noqa PLR0913 # TODO: come back to fix later
+def get_latex_table(  # noqa PLR0913
     ids_or_paths: list[str],
     table_columns: list[str] | None = None,
-    client: RESTHandleClient | None = None,
+    CMIP6client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     doi_granularity: DOIGranularity | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
@@ -788,7 +790,7 @@ def get_latex_table(  # noqa PLR0913 # TODO: come back to fix later
 
         See [DOIGranularity][(m).] for details.
 
-    client
+    CMIP6client
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
@@ -826,7 +828,7 @@ def get_latex_table(  # noqa PLR0913 # TODO: come back to fix later
                 ["doi", "version"],
                 get_doi_and_version(
                     v,
-                    client=client,
+                    CMIP6client=CMIP6client,
                     multi_dataset_handling=multi_dataset_handling,
                     doi_granularity=doi_granularity,
                     dataset_pid_lookup=dataset_pid_lookup,
@@ -881,8 +883,13 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
             ) from exc
 
         with netCDF4.Dataset(in_value) as ds:
-            # TODO: handle case when it does not have all the attributes
-            attrs = {x: ds.getncattr(x) for x in columns}
+            for x in columns:
+                if x not in ds.ncattrs():
+                    warnings.warn(
+                        f"{x} not found in {in_value}. Setting to empty string.",
+                        UserWarning,
+                    )
+            attrs = {x: ds.getncattr(x) if x in ds.ncattrs() else "" for x in columns}
 
     else:  # in_value is a tracking ID or PID
         # TODO: calling stack again here,
@@ -912,6 +919,12 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
             )
         STACfeatures = STACdata["features"][0]
 
+        for x in columns:
+            if f"{mip_era.lower()}:{x}" not in STACfeatures["properties"]:
+                warnings.warn(
+                    f"{x} not found in {in_value}. Setting to empty string.",
+                    UserWarning,
+                )
         attrs = {
             x: STACfeatures["properties"][f"{mip_era.lower()}:{x}"] for x in columns
         }
@@ -960,11 +973,11 @@ def translate_get_args_to_get_citations_kwargs(
     else:  # pragma: no cover
         raise NotImplementedError(FormatOption)
 
-    client = RESTHandleClient(handle_server_url=handle_server_url)
+    CMIP6client = RESTHandleClient(handle_server_url=handle_server_url)
 
     return dict(
         get_citation=get_citation,
-        client=client,
+        CMIP6client=CMIP6client,
     )
 
 

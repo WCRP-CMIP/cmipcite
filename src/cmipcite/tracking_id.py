@@ -68,7 +68,7 @@ class MultipleDatasetMemberError(KeyError):
 
 def get_dataset_pids(  # type: ignore
     tracking_id: str,
-    client: RESTHandleClient | None = None,
+    CMIP6client: RESTHandleClient | None = None,
 ) -> list[str]:
     """
     Get the PID(s) of the dataset(s) with which a tracking ID is associated
@@ -78,7 +78,7 @@ def get_dataset_pids(  # type: ignore
     tracking_id
         Tracking ID for which to get associated PIDs
 
-    client
+    CMIP6client
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
@@ -89,11 +89,11 @@ def get_dataset_pids(  # type: ignore
     :
         PID(s) of the dataset(s) with which `tracking_id` is associated
     """
-    if client is None:  # pragma: no cover
-        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+    if CMIP6client is None:  # pragma: no cover
+        CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
     id_query = tracking_id.replace("hdl:", "")
-    pids_raw: str = client.get_value_from_handle(id_query, "IS_PART_OF")
+    pids_raw: str = CMIP6client.get_value_from_handle(id_query, "IS_PART_OF")
     pids = pids_raw.split(";")
 
     return pids
@@ -102,7 +102,7 @@ def get_dataset_pids(  # type: ignore
 def get_dataset_pid(  # type: ignore
     tracking_id: str,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-    client: RESTHandleClient | None = None,
+    CMIP6client: RESTHandleClient | None = None,
 ) -> str:
     """
     Get dataset PID to which a given tracking ID belongs
@@ -119,7 +119,7 @@ def get_dataset_pid(  # type: ignore
         If not supplied, an error is raised if `tracking_id`
         is associated with more than one PID.
 
-    client
+    CMIP6client
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
@@ -136,10 +136,10 @@ def get_dataset_pid(  # type: ignore
         `multi_dataset_handling` is `None` and the tracking ID
         appears in multiple datasets.
     """
-    if client is None:
-        client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+    if CMIP6client is None:
+        CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
 
-    pids = get_dataset_pids(tracking_id, client=client)
+    pids = get_dataset_pids(tracking_id, CMIP6client=CMIP6client)
     if len(pids) == 1:
         # Only found one, fast return
         return pids[0]
@@ -148,7 +148,7 @@ def get_dataset_pid(  # type: ignore
     # We could imagine adding more complicated picking strategies here.
     # For now, this is fine.
     versions = {
-        client.get_value_from_handle(pid, "VERSION_NUMBER"): pid for pid in pids
+        CMIP6client.get_value_from_handle(pid, "VERSION_NUMBER"): pid for pid in pids
     }
     if multi_dataset_handling is None:
         raise MultipleDatasetMemberError(tracking_id=tracking_id, version_pids=versions)
