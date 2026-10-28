@@ -15,17 +15,42 @@ runner = CliRunner()
 
 
 @pytest.mark.parametrize(
-    "out_path, out_format, author_list_style, doi_granularity",
+    "in_values",
     (
-        pytest.param(None, None, None, None, id="defaults"),
-        pytest.param("tmp.bib", "bibtex", "short", "experiment", id="bib-short-exp"),
-        pytest.param("tmp.txt", "text", "long", "model", id="text-long-model"),
+        pytest.param("hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791", id="CMIP6"),
+        pytest.param("hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4", id="CMIP7"),
+    ),
+)
+@pytest.mark.parametrize(
+    "out_path, out_format, author_list_style, doi_granularity, table_columns",
+    (
+        pytest.param(None, None, None, None, None, id="defaults"),
+        pytest.param(
+            "tmp.bib", "bibtex", "short", "experiment", None, id="bib-short-exp"
+        ),
+        pytest.param("tmp.txt", "text", "long", "model", None, id="text-long-model"),
+        pytest.param("table.txt", "latextable", None, None, None, id="table-default"),
+        pytest.param(
+            "table2.txt",
+            "latextable",
+            None,
+            None,
+            ["source_id", "variant_label", "version", "doi"],
+            id="table-columns",
+        ),
     ),
 )
 def test_citations_args(  # noqa: PLR0913
-    out_path, out_format, author_list_style, doi_granularity, file_regression, tmpdir
+    in_values,
+    out_path,
+    out_format,
+    author_list_style,
+    doi_granularity,
+    table_columns,
+    file_regression,
+    tmpdir,
 ):
-    args = ["get", "hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b"]
+    args = ["get", in_values]
 
     if out_path is not None:
         out_path_full = Path(tmpdir) / out_path
@@ -39,6 +64,10 @@ def test_citations_args(  # noqa: PLR0913
 
     if doi_granularity is not None:
         args.extend(["--doi-granularity", doi_granularity])
+
+    if table_columns is not None:
+        for x in table_columns:
+            args.extend(["--table-columns", x])
 
     result = runner.invoke(app, args)
 

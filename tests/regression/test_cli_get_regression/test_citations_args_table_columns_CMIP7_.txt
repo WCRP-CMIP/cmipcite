@@ -1,0 +1,7 @@
+\begin{center}
+\begin{tabular}{ c c c c }
+Source & Variant_label & Version & DOI \\
+ \hline
+UKCM2a-0-HH & r1i1p1f1 & 20260826 & 10.82965/QKC2-9G82 \\
+\end{tabular}
+\end{center}

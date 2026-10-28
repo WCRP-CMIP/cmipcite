@@ -80,9 +80,11 @@ def get(  # noqa: PLR0913
     doi_granularity: Annotated[
         DOIGranularity,
         typer.Option(
-            help="Only valid for CMIP6 data. Desired granularity of the retrieved DOIs."
+            help="Only valid for CMIP6 data. "
+            "Desired granularity of the retrieved DOIs. "
+            "Defaults to EXPRIMENT"
         ),
-    ] = DOIGranularity.MODEL,
+    ] = None,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],
         typer.Option(
@@ -90,12 +92,12 @@ def get(  # noqa: PLR0913
         ),
     ] = None,
     handle_server_url: Annotated[
-        str,
+        Optional[str],
         typer.Option(
             help="Only valid for CMIP6 data. URL of the server to use for handling"
-            " tracking IDs i.e. handles"
+            " tracking IDs i.e. handles. Defaults to https://hdl.handle.net"
         ),
-    ] = "http://hdl.handle.net/",
+    ] = None,
     dataset_pid_lookup: Annotated[
         DatasetPIDLookupStrategy,
         typer.Option(
@@ -123,14 +125,19 @@ def get(  # noqa: PLR0913
     Generate citations from CMIP files or tracking IDs or PIDs
     """
     if format == FormatOption.LATEXTABLE:
-        table = get_latex_table(
+        text = get_latex_table(
             ids_or_paths=in_values,
             table_columns=table_columns,
             multi_dataset_handling=multi_dataset_handling,
             doi_granularity=doi_granularity,
             dataset_pid_lookup=dataset_pid_lookup,
         )
-        return table
+
+        if out_path is None:
+            print(text)
+        else:
+            with open(out_path, "w") as fh:
+                fh.write(text)
     else:
         get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
             format=format,

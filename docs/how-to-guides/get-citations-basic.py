@@ -52,7 +52,7 @@ print(citations[0])
 # Instead of an id, you can also pass a path to a file.
 
 # %%
-data_file = "tests/test-data/sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"
+data_file = "../../tests/test-data/sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"
 citations = get([data_file])
 print(citations[0])
 
@@ -79,20 +79,21 @@ print(citations[0])
 
 
 # %% [markdown]
-# There are multiple possibilities for the retrieved DOI.
+# For CMIP6, there are multiple possibilities for the retrieved DOI.
 # These vary based on the granularity of the DOI.
-# At the moment, as far as we know, there are two granularities:
+# There are two granularities:
 #     * model (capturing all submissions to a given MIP by a given model)
 #        * DRS: `<mip_era>/<activity_id>/<institution_id>/<source_id>`
 #     * experiment (capturing all submissions to a given MIP by a given model for a
 #     given experiment.
 #        * DRS: `<mip_era>/<activity_id>/<institution_id>/<source_id>/<experiment_id>`
 # This is controlled by `doi_granularity`.
+# For CMIP7, only the experiment granularity is available.
 
 # %%
 citations = get(
     ["hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"],
-    doi_granularity="experiment",
+    doi_granularity="model",
 )
 print(citations[0])
 

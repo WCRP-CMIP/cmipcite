@@ -133,13 +133,16 @@ def get_text_citation(
     """
     r = httpx.get(f"https://api.datacite.org/dois/{doi}", follow_redirects=True)
     data = r.raise_for_status().json()["data"]["attributes"]
-
     if author_list_style == AuthorListStyle.SHORT:
         if len(data["creators"]) == 1:
             creators = data["creators"][0]["name"]
 
-        else:
+        elif "familyName" in data["creators"][0]:
             creators = f"{data['creators'][0]['familyName']} et al."
+        elif "," in data["creators"][0]["name"]:
+            creators = f"{data['creators'][0]['name'].split(',')[0]} et al."
+        else:
+            creators = f"{data['creators'][0]['name'].split(' ')[-1]} et al."
 
     elif author_list_style == AuthorListStyle.LONG:
         creators = "; ".join([c["name"] for c in data["creators"]])
@@ -153,7 +156,7 @@ def get_text_citation(
             f"Version {version}. {data['publisher']}. https://doi.org/{doi}."
         )
     else:
-        if "CMIP7" in data["titles"][0]["title"]:
+        if "CMIP7" not in data["titles"][0]["title"]:
             warnings.warn(
                 "Unable to identify the mip era from the title"
                 f"({data['titles'][0]['title']}). The textual citation"
@@ -336,6 +339,7 @@ def _in_value_CMIP6_2_pid(  # type: ignore
 
 # we can't use the CMIP6 STAC like CMIP7 because some of the data seems to be missing
 # (ex. hdl:21.14100/f2f502c9-9626-31c6-b016-3f7c0534803b)
+# doi_granularity default to experiment to fit with CMIP7
 def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     in_value: str,
     doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
@@ -391,6 +395,9 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     """
     if CMIP6client is None:  # pragma: no cover
         CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+
+    # default to Experiment if None
+    doi_granularity = doi_granularity or DOIGranularity.EXPERIMENT
 
     pid = _in_value_CMIP6_2_pid(
         in_value, CMIP6client, get_tracking_id_from_path, multi_dataset_handling
@@ -533,7 +540,7 @@ def _get_doi_and_version_CMIP7(  # type: ignore
 
 def get_doi_and_version(  # type: ignore # noqa: PLR0913
     in_value: str,
-    doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
+    doi_granularity: DOIGranularity | None = None,
     CMIP6client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
@@ -717,18 +724,29 @@ def get_citations(  # type: ignore # noqa: PLR0913
     @misc{https://doi.org/10.22033/esgf/cmip6.742,
       doi = {10.22033/ESGF/CMIP6.742},
       url = {http://cera-www.dkrz.de/WDCC/meta/CMIP6/CMIP6.CMIP.MPI-M.MPI-ESM1-2-LR},
-      author = {Wieners, Karl-Hermann and Giorgetta, Marco and Jungclaus, Johann and Reick, Christian and Esch, Monika and Bittner, Matthias and Legutke, Stephanie and Schupfner, Martin and Wachsmann, Fabian and Gayler, Veronika and Haak, Helmuth and de Vrese, Philipp and Raddatz, Thomas and Mauritsen, Thorsten and von Storch, Jin-Song and Behrens, Jörg and Brovkin, Victor and Claussen, Martin and Crueger, Traute and Fast, Irina and Fiedler, Stephanie and Hagemann, Stefan and Hohenegger, Cathy and Jahns, Thomas and Kloster, Silvia and Kinne, Stefan and Lasslop, Gitta and Kornblueh, Luis and Marotzke, Jochem and Matei, Daniela and Meraner, Katharina and Mikolajewicz, Uwe and Modali, Kameswarrao and Müller, Wolfgang and Nabel, Julia and Notz, Dirk and Peters-von Gehlen, Karsten and Pincus, Robert and Pohlmann, Holger and Pongratz, Julia and Rast, Sebastian and Schmidt, Hauke and Schnur, Reiner and Schulzweida, Uwe and Six, Katharina and Stevens, Bjorn and Voigt, Aiko and Roeckner, Erich},
+      author = {Wieners, Karl-Hermann and Giorgetta, Marco and Jungclaus,
+      Johann and Reick, Christian and Esch, Monika and Bittner, Matthias and Legutke,
+      Stephanie and Schupfner, Martin and Wachsmann, Fabian and Gayler,
+      Veronika and Haak, Helmuth and de Vrese, Philipp and Raddatz,
+      Thomas and Mauritsen, Thorsten and von Storch, Jin-Song and Behrens,
+      Jörg and Brovkin, Victor and Claussen, Martin and Crueger, Traute and Fast,
+      Irina and Fiedler, Stephanie and Hagemann, Stefan and Hohenegger, Cathy and Jahns,
+      Thomas and Kloster, Silvia and Kinne, Stefan and Lasslop, Gitta and Kornblueh,
+      Luis and Marotzke, Jochem and Matei, Daniela and Meraner, Katharina and
+      Mikolajewicz, Uwe and Modali, Kameswarrao and Müller, Wolfgang and Nabel, Julia
+      and Notz, Dirk and Peters-von Gehlen, Karsten and Pincus, Robert and Pohlmann,
+      Holger and Pongratz, Julia and Rast, Sebastian and Schmidt, Hauke and Schnur,
+      Reiner and Schulzweida, Uwe and Six, Katharina and Stevens, Bjorn and Voigt, Aiko
+      and Roeckner, Erich},
       keywords = {CMIP6, climate, CMIP6.CMIP.MPI-M.MPI-ESM1-2-LR},
       language = {en},
-      title = {MPI-M MPIESM1.2-LR model output prepared for CMIP6 CMIP. Version 20211412.},
+      title = {MPI-M MPIESM1.2-LR model output prepared for CMIP6 CMIP.
+        Version 20211412.},
       publisher = {Earth System Grid Federation},
       year = {2019},
       copyright = {Creative Commons Attribution 4.0 International}
     }
-    """  # noqa: E501
-    if CMIP6client is None:  # pragma: no cover
-        CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
-
+    """
     doi_versions = [
         get_doi_and_version(
             v,
@@ -907,7 +925,9 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
         STACdata = r.json()
 
         if len(STACdata["features"]) == 0:
-            message = f"No {mip_era} dataset found for {in_value}"
+            message = f"No {mip_era} dataset found for {in_value} in the STAC API."
+            # TODO: for missing CMIP6 data in the STAC API,
+            # try to get info from parsing drs_id in the handle.net server ??
             raise ValueError(message)
         elif len(STACdata["features"]) > 1:
             # TODO: do something smarter here. like multi_dataset_handling
@@ -934,7 +954,7 @@ def _get_attrs(in_value: str, columns) -> dict[str, Any]:
 def translate_get_args_to_get_citations_kwargs(
     format: FormatOption,
     author_list_style: AuthorListStyle,
-    handle_server_url: str = "http://hdl.handle.net/",
+    handle_server_url: str | None = None,
 ) -> dict[str, Any]:
     """
     Translate the arguments of [(m).get][] to arguments needed by [(m).get_citations][]
@@ -973,7 +993,10 @@ def translate_get_args_to_get_citations_kwargs(
     else:  # pragma: no cover
         raise NotImplementedError(FormatOption)
 
-    CMIP6client = RESTHandleClient(handle_server_url=handle_server_url)
+    if handle_server_url is None:
+        CMIP6client = None
+    else:
+        CMIP6client = RESTHandleClient(handle_server_url=handle_server_url)
 
     return dict(
         get_citation=get_citation,
@@ -985,12 +1008,12 @@ def get(  # noqa: PLR0913
     in_values: list[str],
     format: FormatOption = FormatOption.TEXT,
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
-    doi_granularity: DOIGranularity = DOIGranularity.MODEL,
+    doi_granularity: DOIGranularity | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy = (
         DatasetPIDLookupStrategy.ALLOWPREVIOUS
     ),
-    handle_server_url: str = "http://hdl.handle.net/",
+    handle_server_url: str | None = None,
     table_columns: list[str] | None = [
         "source_id",
         "institution_id",

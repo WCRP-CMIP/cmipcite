@@ -8,7 +8,9 @@ from unittest.mock import patch
 
 import pytest
 
-from cmipcite.citations import get_tracking_id_from_cmip_netcdf
+from cmipcite.citations import (
+    get_tracking_id_from_cmip_netcdf,
+)
 from cmipcite.exceptions import MissingOptionalDependencyError
 
 

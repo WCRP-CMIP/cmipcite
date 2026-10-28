@@ -1,0 +1,7 @@
+\begin{center}
+\begin{tabular}{ c c c c c c }
+Source & Institution & Experiment & Variable & Version & Reference \\
+ \hline
+CanESM5 & CCCma & historical & sftlf & 20190429 & \cite{https://doi.org/10.22033/esgf/cmip6.3610} \\
+\end{tabular}
+\end{center}

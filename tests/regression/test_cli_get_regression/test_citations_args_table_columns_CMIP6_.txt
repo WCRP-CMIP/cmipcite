@@ -1,0 +1,7 @@
+\begin{center}
+\begin{tabular}{ c c c c }
+Source & Variant_label & Version & DOI \\
+ \hline
+CanESM5 & r1i1p1f1 & 20190429 & 10.22033/ESGF/CMIP6.3610 \\
+\end{tabular}
+\end{center}

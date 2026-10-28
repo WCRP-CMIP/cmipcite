@@ -32,14 +32,14 @@ from cmipcite.citations import get
 
 
 # %%
-table = get(["hdl:21.14107/4caada9a-697f-4cfb-a898-94eedbd25dee"], format="latextable")
+table = get(["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"], format="latextable")
 print(table)
 
 # %% [markdown]
 # The citation links to the label in the bibtex file.
 
 # %%
-bib = get(["hdl:21.14107/4caada9a-697f-4cfb-a898-94eedbd25dee"], format="bibtex")
+bib = get(["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"], format="bibtex")
 print(bib)
 
 
@@ -49,7 +49,7 @@ print(bib)
 
 # %%
 table = get(
-    ["hdl:21.14107/4caada9a-697f-4cfb-a898-94eedbd25dee"],
+    ["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"],
     format="latextable",
     table_columns=["source_id", "variant_label", "version", "doi"],
 )

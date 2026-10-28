@@ -1,0 +1,7 @@
+\begin{center}
+\begin{tabular}{ c c c c c c }
+Source & Institution & Experiment & Variable & Version & Reference \\
+ \hline
+UKCM2a-0-HH & UKNCSP & historical & ta & 20260826 & \cite{https://doi.org/10.82965/qkc2-9g82} \\
+\end{tabular}
+\end{center}
