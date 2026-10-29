@@ -80,9 +80,9 @@ def get(  # noqa: PLR0913
     doi_granularity: Annotated[
         DOIGranularity,
         typer.Option(
-            help="Only valid for CMIP6 data. "
+            help="Only valid for CMIP6 data (where it defaults to experiment). "
             "Desired granularity of the retrieved DOIs. "
-            "Defaults to EXPRIMENT"
+            ""
         ),
     ] = None,
     multi_dataset_handling: Annotated[
@@ -94,18 +94,21 @@ def get(  # noqa: PLR0913
     handle_server_url: Annotated[
         Optional[str],
         typer.Option(
-            help="Only valid for CMIP6 data. URL of the server to use for handling"
-            " tracking IDs i.e. handles. Defaults to https://hdl.handle.net"
+            help="Only valid for CMIP6 data "
+            "(where it defaults to https://hdl.handle.net)"
+            ". URL of the server to use for handling"
+            " tracking IDs i.e. handles."
         ),
     ] = None,
     dataset_pid_lookup: Annotated[
-        DatasetPIDLookupStrategy,
+        Optional[DatasetPIDLookupStrategy],
         typer.Option(
-            help="Whether to only look at the current dataset PID or allow looking at "
+            help="Only valid for CMIP6 data (where it defaults to allow previous). "
+            "Whether to only look at the current dataset PID or allow looking at "
             "the previous dataset PID (if it exists)"
             " if the current one does not have a DOI."
         ),
-    ] = DatasetPIDLookupStrategy.ALLOWPREVIOUS,
+    ] = None,
     table_columns: Annotated[
         list[str],
         typer.Option(

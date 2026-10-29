@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import httpx
+import numpy as np
 import requests
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
@@ -346,7 +347,8 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     CMIP6client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
+    dataset_pid_lookup: DatasetPIDLookupStrategy
+    | None = DatasetPIDLookupStrategy.ALLOWPREVIOUS,
 ) -> tuple[str, str]:
     """
     Get DOI and version for a given ID or path to a netCDF file
@@ -450,7 +452,6 @@ def _get_doi_and_version_CMIP7(  # type: ignore
     in_value: str,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
 ) -> tuple[str, str]:
     """
     Get DOI and version for a given ID or path to a netCDF file
@@ -470,10 +471,6 @@ def _get_doi_and_version_CMIP7(  # type: ignore
 
         Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
 
-    dataset_pid_lookup
-        Whether to only look at the current dataset PID or allow looking at the
-        previous dataset PID if the current one does not have a DOI.
-
 
     Returns
     -------
@@ -483,59 +480,14 @@ def _get_doi_and_version_CMIP7(  # type: ignore
     version :
         Version that applies to `in_value`
     """
-    if Path(in_value).exists():
-        in_value = get_tracking_id_from_path(Path(in_value))
+    info = get_info_from_STAC(
+        in_value,
+        ["doi", "version"],
+        get_tracking_id_from_path,
+        multi_dataset_handling,
+    )
 
-    url = "https://transaction.east.esgf.io/collections/CMIP7/items"
-
-    params = {
-        "filter": (f"cmip7:tracking_id = '{in_value}' OR cmip7:pid = '{in_value}'"),
-        "filter-lang": "cql2-text",
-        "limit": 100,
-    }
-
-    r = requests.get(url, params=params, timeout=5)
-    r.raise_for_status()
-    STACdata = r.json()
-
-    if len(STACdata["features"]) == 0:
-        message = f"No CMIP7 dataset found for {in_value}"
-        raise ValueError(message)
-    elif len(STACdata["features"]) > 1:
-        # TODO: do something smarter here. like multi_dataset_handling
-        # the problem is that I don't know what the order is.
-        # is the latest first or last? is it even consistent?
-        warnings.warn(
-            f"More than one feature found for {in_value}. Using the first one.",
-            UserWarning,
-        )
-    STACfeatures = STACdata["features"][0]
-
-    # get version
-    version = STACfeatures["properties"]["version"]
-
-    # get the citation service url from STAC
-    # and  get the doi_urlfrom the the citation service
-    cite_as_links = [x for x in STACfeatures["links"] if x["rel"] == "cite-as"]
-    if len(cite_as_links) == 0:
-        message = f"No cite-as link found for {in_value}"
-        raise ValueError(message)
-    # TODO: is there a possibilty that there would be more than one cite-as link?
-    elif len(cite_as_links) > 1:
-        warnings.warn(
-            f"More than one cite-as link found for {in_value}. Using the first one.",
-            UserWarning,
-        )
-    cite_as_link = cite_as_links[0]
-    responsecitation = requests.get(cite_as_link["href"], timeout=5)
-    responsecitation.raise_for_status()
-    CITEdata = responsecitation.json()
-
-    doi = CITEdata["doi_url"]
-    # TODO: check format of doi when they exist
-    doi = doi.replace("https://doi.org/", "").upper()
-
-    return (doi, version)
+    return (info["doi"], info["version"])
 
 
 def get_doi_and_version(  # type: ignore # noqa: PLR0913
@@ -618,11 +570,16 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
                 " Ignoring the doi_granularity parameter.",
                 UserWarning,
             )
+        if dataset_pid_lookup is not None:
+            warnings.warn(
+                "dataset_pid_lookup is not used for CMIP7. "
+                " Ignoring the dataset_pid_lookup parameter.",
+                UserWarning,
+            )
         (doi, version) = _get_doi_and_version_CMIP7(
             in_value,
             get_tracking_id_from_path=get_tracking_id_from_path,
             multi_dataset_handling=multi_dataset_handling,
-            dataset_pid_lookup=dataset_pid_lookup,
         )
 
     return (doi, version)
@@ -770,6 +727,7 @@ def get_latex_table(  # noqa PLR0913
     ids_or_paths: list[str],
     table_columns: list[str] | None = None,
     CMIP6client: RESTHandleClient | None = None,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     doi_granularity: DOIGranularity | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
@@ -778,7 +736,8 @@ def get_latex_table(  # noqa PLR0913
 
     If your IDs are tracking IDs or paths,
     then two or more IDs/paths can share the same citation.
-    This function returns the minimum a table only with unique columns
+    This function returns the minimum a table only with unique columns.
+    Only works for CMIP7 at the moment.
 
     Parameters
     ----------
@@ -820,10 +779,6 @@ def get_latex_table(  # noqa PLR0913
 
         Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
 
-    dataset_pid_lookup
-        Whether to only look at the current dataset PID orallow looking at the
-        previous dataset PID if the current one does not have a DOI.
-
 
     """
     columns_title = [
@@ -839,19 +794,11 @@ def get_latex_table(  # noqa PLR0913
         + " \\\\\n \\hline \n"
     )
 
-    # get doi and version
-    doi_versions = [
-        dict(
-            zip(
-                ["doi", "version"],
-                get_doi_and_version(
-                    v,
-                    CMIP6client=CMIP6client,
-                    multi_dataset_handling=multi_dataset_handling,
-                    doi_granularity=doi_granularity,
-                    dataset_pid_lookup=dataset_pid_lookup,
-                ),
-            )
+    attrs_col = ["doi" if c == "reference" else c for c in table_columns]
+
+    in_attrs = [
+        get_info_from_STAC(
+            v, attrs_col, get_tracking_id_from_path, multi_dataset_handling
         )
         for v in ids_or_paths
     ]
@@ -859,14 +806,10 @@ def get_latex_table(  # noqa PLR0913
     # get the bibtex entry (which happens to have doi_url as a label)
     bibtex_ref = [
         {"reference": "\\cite{https://doi.org/" + x["doi"].lower() + "}"}
-        for x in doi_versions
+        for x in in_attrs
     ]
 
-    # eget the rest of the attrs
-    attrs_col = [x for x in table_columns if x not in ["version", "reference", "doi"]]
-    in_attrs = [_get_attrs(v, attrs_col) for v in ids_or_paths]
-
-    combined = [{**a, **b, **c} for a, b, c in zip(in_attrs, doi_versions, bibtex_ref)]
+    combined = [{**a, **b} for a, b in zip(in_attrs, bibtex_ref)]
 
     # only keep the columns wanted
     combined_tuple = [tuple(d[k] for k in table_columns) for d in combined]
@@ -883,72 +826,109 @@ def get_latex_table(  # noqa PLR0913
     return table
 
 
-def _get_attrs(in_value: str, columns) -> dict[str, Any]:
+def get_info_from_STAC(
+    in_value: str,
+    properties: list[str],
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+) -> dict[str, Any]:
     """
-    Get attrs from input.
+    Get listed properties from STAC based on in_value.
 
-    From in_value (tracking_id, PID or path to a netCDF file),
-    get the CMIP7 attributes project_id, activity_id, institution_id, source_id and
-    experiment_id.
-
+    It is also possible to get the doi.
     """
     if Path(in_value).exists():
-        try:
-            import netCDF4
-        except ImportError as exc:
-            raise MissingOptionalDependencyError(
-                "get_tracking_id_from_cmip_netcdf", requirement="netCDF4"
-            ) from exc
+        in_value = get_tracking_id_from_path(Path(in_value))
 
-        with netCDF4.Dataset(in_value) as ds:
-            for x in columns:
-                if x not in ds.ncattrs():
-                    warnings.warn(
-                        f"{x} not found in {in_value}. Setting to empty string.",
-                        UserWarning,
-                    )
-            attrs = {x: ds.getncattr(x) if x in ds.ncattrs() else "" for x in columns}
+    mip_era = get_mip_era(in_value)
+    if mip_era == "CMIP6":
+        message = "CMIP6 STAC is incomplete. A workaround has not yet been implemented."
+        raise NotImplementedError(message)
 
-    else:  # in_value is a tracking ID or PID
-        # TODO: calling stack again here,
-        # would it be better to get this info at the same time as doi and version ?
-        mip_era = get_mip_era(in_value)
+    url = (
+        f"https://transaction.east.esgf.io/collections/{mip_era}/items?filter="
+        f"{mip_era.lower()}:tracking_id='{in_value}' OR"
+        f"{mip_era.lower()}:pid='{in_value}'&"
+        "filter-lang=cql2-text&limit=1"
+    )
+    r = requests.get(url, timeout=5)
+    r.raise_for_status()
+    STACdata = r.json()
 
-        url = (
-            f"https://transaction.east.esgf.io/collections/{mip_era}/items?filter="
-            f"{mip_era.lower()}:tracking_id='{in_value}' OR"
-            f"{mip_era.lower()}:pid='{in_value}'&"
-            "filter-lang=cql2-text&limit=1"
-        )
-        r = requests.get(url, timeout=5)
-        r.raise_for_status()
-        STACdata = r.json()
+    STACfeatures = _get_right_STACfeature(in_value, STACdata, multi_dataset_handling)
 
-        if len(STACdata["features"]) == 0:
-            message = f"No {mip_era} dataset found for {in_value} in the STAC API."
-            # TODO: for missing CMIP6 data in the STAC API,
-            # try to get info from parsing drs_id in the handle.net server ??
-            raise ValueError(message)
-        elif len(STACdata["features"]) > 1:
-            # TODO: do something smarter here. like multi_dataset_handling
-            # the problem is that I don't know what the order is.
-            # is the latest first or last? is it even consistent?
+    info = {}
+    for x in properties:
+        if f"{mip_era.lower()}:{x}" in STACfeatures["properties"]:
+            info[x] = STACfeatures["properties"][f"{mip_era.lower()}:{x}"]
+        elif x in STACfeatures["properties"]:
+            info[x] = STACfeatures["properties"][x]
+        elif x == "doi":
+            info["doi"] = _get_doi_from_STACfeatures(in_value, STACfeatures)
+        else:
             warnings.warn(
-                f"More than one feature found for {in_value}. Using the first one.",
+                f"{x} not found in STAC for {in_value}. Setting to empty string.",
                 UserWarning,
             )
-        STACfeatures = STACdata["features"][0]
+            info[x] = ""
 
-        for x in columns:
-            if f"{mip_era.lower()}:{x}" not in STACfeatures["properties"]:
-                warnings.warn(
-                    f"{x} not found in {in_value}. Setting to empty string.",
-                    UserWarning,
-                )
-        attrs = {
-            x: STACfeatures["properties"][f"{mip_era.lower()}:{x}"] for x in columns
-        }
-    return attrs
+    return info
+
+
+def _get_right_STACfeature(in_value, STACdata, multi_dataset_handling):
+    """Choose the right STAC feature based on the multi_dataset_handling strategy."""
+    if len(STACdata["features"]) == 0:
+        message = f"No CMIP7 dataset found for {in_value}"
+        raise ValueError(message)
+    elif len(STACdata["features"]) == 1:
+        STACfeatures = STACdata["features"][0]
+    else:
+        # TODO: find a CMIP7 case to test this
+        warnings.warn(
+            f"More than one feature found for {in_value}. Using the first one.",
+            UserWarning,
+        )
+
+        versions = [int(f["properties"]["version"]) for f in STACdata["features"]]
+
+        if multi_dataset_handling is None:
+            raise MultipleDatasetMemberError(
+                tracking_id=in_value, version_pids=versions
+            )
+
+        if multi_dataset_handling == MultiDatasetHandlingStrategy.LATEST:
+            STACfeatures = STACdata["features"][np.argmax(versions)]
+
+        elif multi_dataset_handling == MultiDatasetHandlingStrategy.FIRST:
+            STACfeatures = STACdata["features"][np.argmin(versions)]
+
+        else:  # pragma: no cover
+            raise NotImplementedError(multi_dataset_handling)
+    return STACfeatures
+
+
+def _get_doi_from_STACfeatures(in_value, STACfeatures):
+    """Extract the DOI from the STAC features and Citation Service."""
+    # get the citation service url from STAC
+    # and  get the doi_urlfrom the the citation service
+    cite_as_links = [x for x in STACfeatures["links"] if x["rel"] == "cite-as"]
+    if len(cite_as_links) == 0:
+        message = f"No cite-as link found for {in_value}"
+        raise ValueError(message)
+    # TODO: is it possible that there would be more than one cite-as link?
+    elif len(cite_as_links) > 1:
+        warnings.warn(
+            f"More than one cite-as link found for {in_value}.Using the first one.",
+            UserWarning,
+        )
+    cite_as_link = cite_as_links[0]
+    responsecitation = requests.get(cite_as_link["href"], timeout=5)
+    responsecitation.raise_for_status()
+    CITEdata = responsecitation.json()
+
+    doi = CITEdata["doi_url"]
+    doi = doi.replace("https://doi.org/", "").upper()
+    return doi
 
 
 def translate_get_args_to_get_citations_kwargs(
@@ -1010,9 +990,7 @@ def get(  # noqa: PLR0913
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
     doi_granularity: DOIGranularity | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-    dataset_pid_lookup: DatasetPIDLookupStrategy = (
-        DatasetPIDLookupStrategy.ALLOWPREVIOUS
-    ),
+    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
     handle_server_url: str | None = None,
     table_columns: list[str] | None = [
         "source_id",
@@ -1042,7 +1020,8 @@ def get(  # noqa: PLR0913
         the author list should be long (all names) or short (et al.)
 
     doi_granularity
-        Only valid for CMIP6 data. Granularity of DOI to retrieve.
+        Only valid for CMIP6 data (where it defaults to experiment).
+        Granularity of DOI to retrieve.
 
         See [DOIGranularity][(m).] for details.
 
@@ -1050,18 +1029,19 @@ def get(  # noqa: PLR0913
         Strategy to use when a given ID or file belongs to multiple datasets
 
     dataset_pid_lookup
+        Only valid for CMIP6 data (where it defaults to allow previous).
         Whether to only look at the current dataset PID or allow looking at the
           previous dataset PID (if it exists) if the current one does not have a DOI.
         See [DatasetPIDLookupStrategy][(m).] for details.
 
     handle_server_url
-        Only valid for CMIP6 data.
+        Only valid for CMIP6 data (where it defaults to https://hdl.handle.net).
         URL of the server to use for handling tracking IDs i.e. handles
         If not supplied, a new client with a default handle server URL
         is instantiated.
 
     table_columns
-        Columns to include in the table if format is LATEXTABLE
+        Columns to include in the table if format is "latextable".
 
     Returns
     -------

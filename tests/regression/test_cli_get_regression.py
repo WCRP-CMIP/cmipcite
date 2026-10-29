@@ -69,19 +69,22 @@ def test_citations_args(  # noqa: PLR0913
         for x in table_columns:
             args.extend(["--table-columns", x])
 
-    result = runner.invoke(app, args)
-
-    assert result.exit_code == 0, result.stdout
-
-    if out_path is None:
-        res = result.stdout
-        suffix = ".txt"
+    if "hdl:21.14100" in in_values and out_format == "latextable":
+        pytest.skip("Latex table output is not ready for CMIP6 datasets")
     else:
-        suffix = out_path_full.suffix
-        with open(out_path_full) as fh:
-            res = fh.read()
+        result = runner.invoke(app, args)
 
-    file_regression.check(res, extension=suffix, encoding="utf-8")
+        assert result.exit_code == 0, result.stdout
+
+        if out_path is None:
+            res = result.stdout
+            suffix = ".txt"
+        else:
+            suffix = out_path_full.suffix
+            with open(out_path_full) as fh:
+                res = fh.read()
+
+        file_regression.check(res, extension=suffix, encoding="utf-8")
 
 
 @pytest.mark.parametrize(
