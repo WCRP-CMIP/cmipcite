@@ -71,7 +71,9 @@ def get_dataset_pids(  # type: ignore
     CMIP6client: RESTHandleClient | None = None,
 ) -> list[str]:
     """
-    Get the PID(s) of the dataset(s) with which a tracking ID is associated
+    Get the PID(s) of the dataset(s) with which a tracking ID is associated.
+
+    Only valid for CMIP6.
 
     Parameters
     ----------
@@ -105,7 +107,9 @@ def get_dataset_pid(  # type: ignore
     CMIP6client: RESTHandleClient | None = None,
 ) -> str:
     """
-    Get dataset PID to which a given tracking ID belongs
+    Get dataset PID to which a given tracking ID belongs.
+
+    Only valid for CMIP6.
 
     Parameters
     ----------

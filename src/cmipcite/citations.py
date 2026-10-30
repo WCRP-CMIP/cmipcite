@@ -492,10 +492,10 @@ def _get_doi_and_version_CMIP7(  # type: ignore
 
 def get_doi_and_version(  # type: ignore # noqa: PLR0913
     in_value: str,
-    doi_granularity: DOIGranularity | None = None,
-    CMIP6client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    doi_granularity: DOIGranularity | None = None,
+    CMIP6client: RESTHandleClient | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
 ) -> tuple[str, str]:
     """
@@ -506,8 +506,15 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
     in_value
         Input ID or path to a netCDF file
 
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+
+    multi_dataset_handling
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
     doi_granularity
-        ONLY VALID FOR CMIP6.
+        Only valid for CMIP6.
         Granularity of DOI to retrieve.
 
         We use the 'lowest-level' from the DRS as a short-hand.
@@ -518,23 +525,14 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
         See [DOIGranularity][(m).] for details.
 
     CMIP6client
-        ONLY VALID FOR CMIP6.
+        Only valid for CMIP6.
         Client to use for interacting with pyhandle's REST API
 
         If not supplied, a new client with a default handle server URL
         is instantiated.
 
-    get_tracking_id_from_path
-        Function which, given a path outputs the tracking ID
-
-    multi_dataset_handling
-        DOESN'T WORK FOR CMIP7 YET
-        What to do in the case that the tracking ID belongs to multiple datasets
-        i.e. is associated with more than one PID.
-
-        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
-
     dataset_pid_lookup
+        Only valid for CMIP6.
         Whether to only look at the current dataset PID or allow looking at the
         previous dataset PID if the current one does not have a DOI.
 
@@ -662,13 +660,14 @@ def get_citations(  # type: ignore # noqa: PLR0913
     Both PID types can be passed to `ids_or_paths`.
 
     For a given PID, we can retrieve an associated DOI.
-    However, there are multiple possibilities for the retrieved DOI.
+    However, for CMIP6, there are multiple possibilities for the retrieved DOI.
     These vary based on the granularity of the DOI.
     At the moment, as far as we know, there are two granularities:
         * model (capturing all submissions to a given MIP by a given model)
         * experiment (capturing all submissions to a given MIP by a given model for a
         given experiment.
     This is controlled by `doi_granularity`.
+    CMIP7 only has one granularity (experiment).
 
     Examples
     --------
@@ -723,21 +722,18 @@ def get_citations(  # type: ignore # noqa: PLR0913
 
 
 # TODO: do other formats also, md ?
-def get_latex_table(  # noqa PLR0913
+def get_latex_table(
     ids_or_paths: list[str],
     table_columns: list[str] | None = None,
-    CMIP6client: RESTHandleClient | None = None,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-    doi_granularity: DOIGranularity | None = None,
-    dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
 ) -> str:
     """Get a LaTeX table of metadata.
 
     If your IDs are tracking IDs or paths,
     then two or more IDs/paths can share the same citation.
     This function returns the minimum a table only with unique columns.
-    Only works for CMIP7 at the moment.
+    Warning: Only works for CMIP7 at the moment.
 
     Parameters
     ----------
@@ -752,33 +748,17 @@ def get_latex_table(  # noqa PLR0913
 
         Paths should point to a CMIP file with a `tracking_id` global attribute.
 
-    columns
+    table_columns
         List of columns to include in the table.
         Possible values are the CMIP global attributes,
-          reference (to get the bibtex label), doi and version.
+          "reference" (to get the bibtex label), "doi" and "version".
 
-    get_citation
-        Function which, given a DOI and a version, produces a citation
-
-        For example, [get_bibtex_citation][(m).].
-
-    doi_granularity
-        Granularity of DOI to retrieve.
-
-        See [DOIGranularity][(m).] for details.
-
-    CMIP6client
-        Client to use for interacting with pyhandle's REST API
-
-        If not supplied, a new client with a default handle server URL
-        is instantiated.
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
 
     multi_dataset_handling
         What to do in the case that the tracking ID belongs to multiple datasets
         i.e. is associated with more than one PID.
-
-        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
-
 
     """
     columns_title = [
@@ -791,7 +771,7 @@ def get_latex_table(  # noqa PLR0913
         + "c " * ncol
         + "}\n"
         + " & ".join(columns_title)
-        + " \\\\\n \\hline \n"
+        + " \\\\\n\\hline\n"
     )
 
     attrs_col = ["doi" if c == "reference" else c for c in table_columns]
@@ -833,9 +813,29 @@ def get_info_from_STAC(
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
 ) -> dict[str, Any]:
     """
-    Get listed properties from STAC based on in_value.
+    Get listed properties from the STAC API based on in_value.
 
     It is also possible to get the doi.
+
+    Parameters
+    ----------
+    in_value
+        Input ID or path to a netCDF file
+    properties
+        List of properties to retrieve from STAC.
+        These can be CMIP global attributes, "version" or "doi".
+    get_tracking_id_from_path
+        Function which, given a path outputs the tracking ID
+    multi_dataset_handling
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
+        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+
+    Returns
+    -------
+    info:
+        Dictionary of properties retrieved from STAC
     """
     if Path(in_value).exists():
         in_value = get_tracking_id_from_path(Path(in_value))
@@ -984,22 +984,25 @@ def translate_get_args_to_get_citations_kwargs(
     )
 
 
+TABLE_COLUMNS_DEFAULT = [
+    "source_id",
+    "institution_id",
+    "experiment_id",
+    "variable_id",
+    "version",
+    "reference",
+]
+
+
 def get(  # noqa: PLR0913
     in_values: list[str],
     format: FormatOption = FormatOption.TEXT,
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
-    doi_granularity: DOIGranularity | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    table_columns: list[str] | None = TABLE_COLUMNS_DEFAULT,
+    doi_granularity: DOIGranularity | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
     handle_server_url: str | None = None,
-    table_columns: list[str] | None = [
-        "source_id",
-        "institution_id",
-        "experiment_id",
-        "variable_id",
-        "version",
-        "reference",
-    ],
 ) -> list[str]:
     """
     Get citations without duplicates from CMIP files or tracking IDs or PIDs
@@ -1019,14 +1022,17 @@ def get(  # noqa: PLR0913
         Whether, if the format is text,
         the author list should be long (all names) or short (et al.)
 
+    multi_dataset_handling
+        Strategy to use when a given ID or file belongs to multiple datasets
+
+    table_columns
+        Columns to include in the table if format is "latextable".
+
     doi_granularity
         Only valid for CMIP6 data (where it defaults to experiment).
         Granularity of DOI to retrieve.
 
         See [DOIGranularity][(m).] for details.
-
-    multi_dataset_handling
-        Strategy to use when a given ID or file belongs to multiple datasets
 
     dataset_pid_lookup
         Only valid for CMIP6 data (where it defaults to allow previous).
@@ -1039,9 +1045,6 @@ def get(  # noqa: PLR0913
         URL of the server to use for handling tracking IDs i.e. handles
         If not supplied, a new client with a default handle server URL
         is instantiated.
-
-    table_columns
-        Columns to include in the table if format is "latextable".
 
     Returns
     -------
@@ -1061,15 +1064,6 @@ def get(  # noqa: PLR0913
     is for a single variable sampled at a single frequency and spatial sampling
     from a single model running a single experiment).
     Both PID types can be passed to `in_values`.
-
-    For a given PID, we can retrieve an associated DOI.
-    However, there are multiple possibilities for the retrieved DOI.
-    These vary based on the granularity of the DOI.
-    At the moment, as far as we know, there are two granularities:
-        * model (capturing all submissions to a given MIP by a given model)
-        * experiment (capturing all submissions to a given MIP by a given model for a
-        given experiment.
-    This is controlled by `doi_granularity`.
     """
     if format == FormatOption.LATEXTABLE:
         table = get_latex_table(
