@@ -448,46 +448,129 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     return (doi, version)
 
 
-def _get_doi_and_version_CMIP7(  # type: ignore
+def get_info_from_STAC(
     in_value: str,
+    properties: list[str],
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-) -> tuple[str, str]:
+) -> dict[str, Any]:
     """
-    Get DOI and version for a given ID or path to a netCDF file
+    Get listed properties from the STAC API based on in_value.
+
+    It is also possible to get the doi.
 
     Parameters
     ----------
     in_value
         Input ID or path to a netCDF file
-
+    properties
+        List of properties to retrieve from STAC.
+        These can be CMIP global attributes, "version" or "doi".
     get_tracking_id_from_path
         Function which, given a path outputs the tracking ID
-
     multi_dataset_handling
-        DOESN'T WORK FOR CMIP7 YET
         What to do in the case that the tracking ID belongs to multiple datasets
         i.e. is associated with more than one PID.
 
         Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
 
-
     Returns
     -------
-    doi :
-        DOI that applies to `in_value`
-
-    version :
-        Version that applies to `in_value`
+    info:
+        Dictionary of properties retrieved from STAC
     """
-    info = get_info_from_STAC(
-        in_value,
-        ["doi", "version"],
-        get_tracking_id_from_path,
-        multi_dataset_handling,
-    )
+    if Path(in_value).exists():
+        in_value = get_tracking_id_from_path(Path(in_value))
 
-    return (info["doi"], info["version"])
+    mip_era = get_mip_era(in_value)
+    if mip_era == "CMIP6":
+        message = "CMIP6 STAC is incomplete. A workaround has not yet been implemented."
+        raise NotImplementedError(message)
+
+    url = (
+        f"https://transaction.east.esgf.io/collections/{mip_era}/items?filter="
+        f"{mip_era.lower()}:tracking_id='{in_value}' OR"
+        f"{mip_era.lower()}:pid='{in_value}'&"
+        "filter-lang=cql2-text&limit=1"
+    )
+    r = requests.get(url, timeout=5)
+    r.raise_for_status()
+    STACdata = r.json()
+
+    STACfeatures = _get_right_STACfeature(in_value, STACdata, multi_dataset_handling)
+
+    info = {}
+    for x in properties:
+        if f"{mip_era.lower()}:{x}" in STACfeatures["properties"]:
+            info[x] = STACfeatures["properties"][f"{mip_era.lower()}:{x}"]
+        elif x in STACfeatures["properties"]:
+            info[x] = STACfeatures["properties"][x]
+        elif x == "doi":
+            info["doi"] = _get_doi_from_STACfeatures(in_value, STACfeatures)
+        else:
+            warnings.warn(
+                f"{x} not found in STAC for {in_value}. Setting to empty string.",
+                UserWarning,
+            )
+            info[x] = ""
+
+    return info
+
+
+def _get_right_STACfeature(in_value, STACdata, multi_dataset_handling):
+    """Choose the right STAC feature based on the multi_dataset_handling strategy."""
+    if len(STACdata["features"]) == 0:
+        message = f"No CMIP7 dataset found for {in_value}"
+        raise ValueError(message)
+    elif len(STACdata["features"]) == 1:
+        STACfeatures = STACdata["features"][0]
+    else:
+        # TODO: find a CMIP7 case to test this
+        warnings.warn(
+            f"More than one feature found for {in_value}. Using the first one.",
+            UserWarning,
+        )
+
+        versions = [int(f["properties"]["version"]) for f in STACdata["features"]]
+
+        if multi_dataset_handling is None:
+            raise MultipleDatasetMemberError(
+                tracking_id=in_value, version_pids=versions
+            )
+
+        if multi_dataset_handling == MultiDatasetHandlingStrategy.LATEST:
+            STACfeatures = STACdata["features"][np.argmax(versions)]
+
+        elif multi_dataset_handling == MultiDatasetHandlingStrategy.FIRST:
+            STACfeatures = STACdata["features"][np.argmin(versions)]
+
+        else:  # pragma: no cover
+            raise NotImplementedError(multi_dataset_handling)
+    return STACfeatures
+
+
+def _get_doi_from_STACfeatures(in_value, STACfeatures):
+    """Extract the DOI from the STAC features and Citation Service."""
+    # get the citation service url from STAC
+    # and  get the doi_urlfrom the the citation service
+    cite_as_links = [x for x in STACfeatures["links"] if x["rel"] == "cite-as"]
+    if len(cite_as_links) == 0:
+        message = f"No cite-as link found for {in_value}"
+        raise ValueError(message)
+    # TODO: is it possible that there would be more than one cite-as link?
+    elif len(cite_as_links) > 1:
+        warnings.warn(
+            f"More than one cite-as link found for {in_value}.Using the first one.",
+            UserWarning,
+        )
+    cite_as_link = cite_as_links[0]
+    responsecitation = requests.get(cite_as_link["href"], timeout=5)
+    responsecitation.raise_for_status()
+    CITEdata = responsecitation.json()
+
+    doi = CITEdata["doi_url"]
+    doi = doi.replace("https://doi.org/", "").upper()
+    return doi
 
 
 def get_doi_and_version(  # type: ignore # noqa: PLR0913
@@ -574,11 +657,15 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
                 " Ignoring the dataset_pid_lookup parameter.",
                 UserWarning,
             )
-        (doi, version) = _get_doi_and_version_CMIP7(
+
+        info = get_info_from_STAC(
             in_value,
+            properties=["doi", "version"],
             get_tracking_id_from_path=get_tracking_id_from_path,
             multi_dataset_handling=multi_dataset_handling,
         )
+        doi = info["doi"]
+        version = info["version"]
 
     return (doi, version)
 
@@ -804,131 +891,6 @@ def get_latex_table(
     table += "\\end{tabular}\n\\end{center}"
 
     return table
-
-
-def get_info_from_STAC(
-    in_value: str,
-    properties: list[str],
-    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
-    multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-) -> dict[str, Any]:
-    """
-    Get listed properties from the STAC API based on in_value.
-
-    It is also possible to get the doi.
-
-    Parameters
-    ----------
-    in_value
-        Input ID or path to a netCDF file
-    properties
-        List of properties to retrieve from STAC.
-        These can be CMIP global attributes, "version" or "doi".
-    get_tracking_id_from_path
-        Function which, given a path outputs the tracking ID
-    multi_dataset_handling
-        What to do in the case that the tracking ID belongs to multiple datasets
-        i.e. is associated with more than one PID.
-
-        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
-
-    Returns
-    -------
-    info:
-        Dictionary of properties retrieved from STAC
-    """
-    if Path(in_value).exists():
-        in_value = get_tracking_id_from_path(Path(in_value))
-
-    mip_era = get_mip_era(in_value)
-    if mip_era == "CMIP6":
-        message = "CMIP6 STAC is incomplete. A workaround has not yet been implemented."
-        raise NotImplementedError(message)
-
-    url = (
-        f"https://transaction.east.esgf.io/collections/{mip_era}/items?filter="
-        f"{mip_era.lower()}:tracking_id='{in_value}' OR"
-        f"{mip_era.lower()}:pid='{in_value}'&"
-        "filter-lang=cql2-text&limit=1"
-    )
-    r = requests.get(url, timeout=5)
-    r.raise_for_status()
-    STACdata = r.json()
-
-    STACfeatures = _get_right_STACfeature(in_value, STACdata, multi_dataset_handling)
-
-    info = {}
-    for x in properties:
-        if f"{mip_era.lower()}:{x}" in STACfeatures["properties"]:
-            info[x] = STACfeatures["properties"][f"{mip_era.lower()}:{x}"]
-        elif x in STACfeatures["properties"]:
-            info[x] = STACfeatures["properties"][x]
-        elif x == "doi":
-            info["doi"] = _get_doi_from_STACfeatures(in_value, STACfeatures)
-        else:
-            warnings.warn(
-                f"{x} not found in STAC for {in_value}. Setting to empty string.",
-                UserWarning,
-            )
-            info[x] = ""
-
-    return info
-
-
-def _get_right_STACfeature(in_value, STACdata, multi_dataset_handling):
-    """Choose the right STAC feature based on the multi_dataset_handling strategy."""
-    if len(STACdata["features"]) == 0:
-        message = f"No CMIP7 dataset found for {in_value}"
-        raise ValueError(message)
-    elif len(STACdata["features"]) == 1:
-        STACfeatures = STACdata["features"][0]
-    else:
-        # TODO: find a CMIP7 case to test this
-        warnings.warn(
-            f"More than one feature found for {in_value}. Using the first one.",
-            UserWarning,
-        )
-
-        versions = [int(f["properties"]["version"]) for f in STACdata["features"]]
-
-        if multi_dataset_handling is None:
-            raise MultipleDatasetMemberError(
-                tracking_id=in_value, version_pids=versions
-            )
-
-        if multi_dataset_handling == MultiDatasetHandlingStrategy.LATEST:
-            STACfeatures = STACdata["features"][np.argmax(versions)]
-
-        elif multi_dataset_handling == MultiDatasetHandlingStrategy.FIRST:
-            STACfeatures = STACdata["features"][np.argmin(versions)]
-
-        else:  # pragma: no cover
-            raise NotImplementedError(multi_dataset_handling)
-    return STACfeatures
-
-
-def _get_doi_from_STACfeatures(in_value, STACfeatures):
-    """Extract the DOI from the STAC features and Citation Service."""
-    # get the citation service url from STAC
-    # and  get the doi_urlfrom the the citation service
-    cite_as_links = [x for x in STACfeatures["links"] if x["rel"] == "cite-as"]
-    if len(cite_as_links) == 0:
-        message = f"No cite-as link found for {in_value}"
-        raise ValueError(message)
-    # TODO: is it possible that there would be more than one cite-as link?
-    elif len(cite_as_links) > 1:
-        warnings.warn(
-            f"More than one cite-as link found for {in_value}.Using the first one.",
-            UserWarning,
-        )
-    cite_as_link = cite_as_links[0]
-    responsecitation = requests.get(cite_as_link["href"], timeout=5)
-    responsecitation.raise_for_status()
-    CITEdata = responsecitation.json()
-
-    doi = CITEdata["doi_url"]
-    doi = doi.replace("https://doi.org/", "").upper()
-    return doi
 
 
 def translate_get_args_to_get_citations_kwargs(
