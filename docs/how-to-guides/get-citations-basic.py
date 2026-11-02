@@ -52,7 +52,7 @@ print(citations[0])
 # Instead of an id, you can also pass a path to a file.
 
 # %%
-data_file = "../../tests/test-data/sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"
+data_file = "tests/test-data/sftlf_fx_CanESM5_historical_r1i1p1f1_gn.nc"
 citations = get([data_file])
 print(citations[0])
 
