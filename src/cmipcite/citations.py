@@ -12,7 +12,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 import httpx
-import numpy as np
 import requests
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
@@ -544,10 +543,10 @@ def _get_right_STACfeature(in_value, STACdata, multi_dataset_handling):
             )
 
         if multi_dataset_handling == MultiDatasetHandlingStrategy.LATEST:
-            STACfeatures = STACdata["features"][np.argmax(versions)]
+            STACfeatures = STACdata["features"][versions.index(max(versions))]
 
         elif multi_dataset_handling == MultiDatasetHandlingStrategy.FIRST:
-            STACfeatures = STACdata["features"][np.argmin(versions)]
+            STACfeatures = STACdata["features"][versions.index(min(versions))]
 
         else:  # pragma: no cover
             raise NotImplementedError(multi_dataset_handling)
