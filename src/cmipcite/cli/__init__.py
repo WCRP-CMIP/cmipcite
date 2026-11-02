@@ -91,13 +91,13 @@ def get(  # noqa: PLR0913
             help="Strategy to use when a given ID or file belongs to multiple datasets."
         ),
     ] = None,
-    handle_server_url: Annotated[
+    server_url: Annotated[
         Optional[str],
         typer.Option(
-            help="Only valid for CMIP6 data "
-            "(where it defaults to https://hdl.handle.net)"
-            ". URL of the server to use for handling"
-            " tracking IDs i.e. handles."
+            help="URL of the server to use for searching pids and retrieve the "
+            "information for the citations."
+            "CMIP6 defaults to https://hdl.handle.net."
+            "CMIP7 defaults to https://transaction.east.esgf.io."
         ),
     ] = None,
     dataset_pid_lookup: Annotated[
@@ -132,8 +132,7 @@ def get(  # noqa: PLR0913
             ids_or_paths=in_values,
             table_columns=table_columns,
             multi_dataset_handling=multi_dataset_handling,
-            doi_granularity=doi_granularity,
-            dataset_pid_lookup=dataset_pid_lookup,
+            server_url=server_url,
         )
 
         if out_path is None:
@@ -145,7 +144,6 @@ def get(  # noqa: PLR0913
         get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
             format=format,
             author_list_style=author_list_style,
-            handle_server_url=handle_server_url,
         )
 
         try:
@@ -154,6 +152,7 @@ def get(  # noqa: PLR0913
                 doi_granularity=doi_granularity,
                 multi_dataset_handling=multi_dataset_handling,
                 dataset_pid_lookup=dataset_pid_lookup,
+                server_url=server_url,
                 **get_citations_kwargs,
             )
 

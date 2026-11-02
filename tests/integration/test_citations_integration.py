@@ -80,16 +80,6 @@ def test_id_doi_in_old_pid():
 
 def test_warnings_CMIP7():
     out = get(["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"])
-    with pytest.warns(
-        UserWarning,
-        match=re.escape(
-            "CMIP6client is not used for CMIP7. Ignoring the client parameter."
-        ),
-    ):
-        out1 = get(
-            ["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"],
-            handle_server_url="http://hdl.handle.net/",
-        )
 
     with pytest.warns(
         UserWarning,
@@ -103,6 +93,4 @@ def test_warnings_CMIP7():
             ["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"],
             doi_granularity="model",
         )
-
-    assert out == out1
     assert out == out2

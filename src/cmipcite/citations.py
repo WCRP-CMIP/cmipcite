@@ -343,12 +343,12 @@ def _in_value_CMIP6_2_pid(  # type: ignore
 # doi_granularity default to experiment to fit with CMIP7
 def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     in_value: str,
-    doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
-    CMIP6client: RESTHandleClient | None = None,
-    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    doi_granularity: DOIGranularity | None = DOIGranularity.EXPERIMENT,
+    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     dataset_pid_lookup: DatasetPIDLookupStrategy
     | None = DatasetPIDLookupStrategy.ALLOWPREVIOUS,
+    server_url: str | None = "https://hdl.handle.net",
 ) -> tuple[str, str]:
     """
     Get DOI and version for a given ID or path to a netCDF file
@@ -357,6 +357,12 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     ----------
     in_value
         Input ID or path to a netCDF file
+
+    multi_dataset_handling
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
+        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
 
     doi_granularity
         Granularity of DOI to retrieve.
@@ -367,25 +373,16 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
 
         See [DOIGranularity][(m).] for details.
 
-    CMIP6client
-        Client to use for interacting with pyhandle's REST API
-
-        If not supplied, a new client with a default handle server URL
-        is instantiated.
-
     get_tracking_id_from_path
         Function which, given a path outputs the tracking ID
-
-    multi_dataset_handling
-        What to do in the case that the tracking ID belongs to multiple datasets
-        i.e. is associated with more than one PID.
-
-        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
 
     dataset_pid_lookup
         Whether to only look at the current dataset PID or allow looking at the
         previous dataset PID if the current one does not have a DOI.
 
+    server_url
+        URL of the server to use for searching pids and retrieve the information for
+          the citations.
 
     Returns
     -------
@@ -395,14 +392,16 @@ def _get_doi_and_version_CMIP6(  # noqa: PLR0913
     version :
         Version that applies to `in_value`
     """
-    if CMIP6client is None:  # pragma: no cover
-        CMIP6client = RESTHandleClient(handle_server_url="http://hdl.handle.net/")
+    CMIP6client = RESTHandleClient(handle_server_url=server_url)
 
     # default to Experiment if None
     doi_granularity = doi_granularity or DOIGranularity.EXPERIMENT
 
     pid = _in_value_CMIP6_2_pid(
-        in_value, CMIP6client, get_tracking_id_from_path, multi_dataset_handling
+        in_value,
+        CMIP6client=CMIP6client,
+        get_tracking_id_from_path=get_tracking_id_from_path,
+        multi_dataset_handling=multi_dataset_handling,
     )
 
     doi_raw = CMIP6client.get_value_from_handle(pid, "IS_PART_OF")
@@ -453,6 +452,7 @@ def get_info_from_STAC(
     properties: list[str],
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    server_url: str | None = "https://transaction.east.esgf.io",
 ) -> dict[str, Any]:
     """
     Get listed properties from the STAC API based on in_value.
@@ -471,8 +471,9 @@ def get_info_from_STAC(
     multi_dataset_handling
         What to do in the case that the tracking ID belongs to multiple datasets
         i.e. is associated with more than one PID.
-
-        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
+    server_url
+        URL of the server to use for searching pids and retrieve the information for
+          the citations.
 
     Returns
     -------
@@ -487,8 +488,10 @@ def get_info_from_STAC(
         message = "CMIP6 STAC is incomplete. A workaround has not yet been implemented."
         raise NotImplementedError(message)
 
+    # set to default if None
+    server_url = server_url or "https://transaction.east.esgf.io"
     url = (
-        f"https://transaction.east.esgf.io/collections/{mip_era}/items?filter="
+        f"{server_url}/collections/{mip_era}/items?filter="
         f"{mip_era.lower()}:tracking_id='{in_value}' OR"
         f"{mip_era.lower()}:pid='{in_value}'&"
         "filter-lang=cql2-text&limit=1"
@@ -497,7 +500,9 @@ def get_info_from_STAC(
     r.raise_for_status()
     STACdata = r.json()
 
-    STACfeatures = _get_right_STACfeature(in_value, STACdata, multi_dataset_handling)
+    STACfeatures = _get_right_STACfeature(
+        in_value, STACdata=STACdata, multi_dataset_handling=multi_dataset_handling
+    )
 
     info = {}
     for x in properties:
@@ -573,13 +578,12 @@ def _get_doi_from_STACfeatures(in_value, STACfeatures):
     return doi
 
 
-def get_doi_and_version(  # type: ignore # noqa: PLR0913
+def get_doi_and_version(  # type: ignore
     in_value: str,
-    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     doi_granularity: DOIGranularity | None = None,
-    CMIP6client: RESTHandleClient | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
+    server_url: str | None = None,
 ) -> tuple[str, str]:
     """
     Get DOI and version for a given ID or path to a netCDF file
@@ -588,9 +592,6 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
     ----------
     in_value
         Input ID or path to a netCDF file
-
-    get_tracking_id_from_path
-        Function which, given a path outputs the tracking ID
 
     multi_dataset_handling
         What to do in the case that the tracking ID belongs to multiple datasets
@@ -607,18 +608,16 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
 
         See [DOIGranularity][(m).] for details.
 
-    CMIP6client
-        Only valid for CMIP6.
-        Client to use for interacting with pyhandle's REST API
-
-        If not supplied, a new client with a default handle server URL
-        is instantiated.
-
     dataset_pid_lookup
         Only valid for CMIP6.
         Whether to only look at the current dataset PID or allow looking at the
         previous dataset PID if the current one does not have a DOI.
 
+    server_url
+        URL of the server to use for searching pids and retrieve the information for
+          the citations.
+        CMIP6 defaults to https://hdl.handle.net.
+        CMIP7 defaults to https://transaction.east.esgf.io.
 
     Returns
     -------
@@ -628,22 +627,16 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
     version :
         Version that applies to `in_value`
     """
-    if get_mip_era(in_value, get_tracking_id_from_path) == "CMIP6":
+    if get_mip_era(in_value) == "CMIP6":
         (doi, version) = _get_doi_and_version_CMIP6(
             in_value,
             doi_granularity=doi_granularity,
-            CMIP6client=CMIP6client,
-            get_tracking_id_from_path=get_tracking_id_from_path,
             multi_dataset_handling=multi_dataset_handling,
             dataset_pid_lookup=dataset_pid_lookup,
+            server_url=server_url,
         )
 
     else:  # CMIP7
-        if CMIP6client is not None:
-            warnings.warn(
-                "CMIP6client is not used for CMIP7. Ignoring the client parameter.",
-                UserWarning,
-            )
         if doi_granularity is not None:
             warnings.warn(
                 "doi_granularity is not used for CMIP7. "
@@ -661,8 +654,8 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
         info = get_info_from_STAC(
             in_value,
             properties=["doi", "version"],
-            get_tracking_id_from_path=get_tracking_id_from_path,
             multi_dataset_handling=multi_dataset_handling,
+            server_url=server_url,
         )
         doi = info["doi"]
         version = info["version"]
@@ -673,10 +666,10 @@ def get_doi_and_version(  # type: ignore # noqa: PLR0913
 def get_citations(  # type: ignore # noqa: PLR0913
     ids_or_paths: list[str],
     get_citation: Callable[[str, str], str],
-    doi_granularity: DOIGranularity,
-    CMIP6client: RESTHandleClient | None = None,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    doi_granularity: DOIGranularity | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
+    server_url: str | None = None,
 ) -> list[str]:
     """
     Get citations that apply to the given IDs or paths
@@ -704,27 +697,24 @@ def get_citations(  # type: ignore # noqa: PLR0913
 
         For example, [get_bibtex_citation][(m).].
 
+    multi_dataset_handling
+        What to do in the case that the tracking ID belongs to multiple datasets
+        i.e. is associated with more than one PID.
+
     doi_granularity
         Only valid for CMIP6 data. Granularity of DOI to retrieve.
 
         See [DOIGranularity][(m).] for details.
 
-    CMIP6client
-        Only valid for CMIP6 data.
-        Client to use for interacting with pyhandle's REST API
-
-        If not supplied, a new client with a default handle server URL
-        is instantiated.
-
-    multi_dataset_handling
-        What to do in the case that the tracking ID belongs to multiple datasets
-        i.e. is associated with more than one PID.
-
-        Passed to [get_dataset_pid][(p).tracking_id.get_dataset_pid].
-
     dataset_pid_lookup
         Whether to only look at the current dataset PID orallow looking at the
         previous dataset PID if the current one does not have a DOI.
+
+    server_url
+        URL of the server to use for searching pids and retrieve the information for
+          the citations.
+        CMIP6 defaults to https://hdl.handle.net.
+        CMIP7 defaults to https://transaction.east.esgf.io.
 
 
     Returns
@@ -793,10 +783,10 @@ def get_citations(  # type: ignore # noqa: PLR0913
     doi_versions = [
         get_doi_and_version(
             v,
-            CMIP6client=CMIP6client,
             multi_dataset_handling=multi_dataset_handling,
             doi_granularity=doi_granularity,
             dataset_pid_lookup=dataset_pid_lookup,
+            server_url=server_url,
         )
         for v in ids_or_paths
     ]
@@ -812,8 +802,8 @@ def get_citations(  # type: ignore # noqa: PLR0913
 def get_latex_table(
     ids_or_paths: list[str],
     table_columns: list[str] | None = None,
-    get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
+    server_url: str | None = None,
 ) -> str:
     """Get a LaTeX table of metadata.
 
@@ -840,12 +830,15 @@ def get_latex_table(
         Possible values are the CMIP global attributes,
           "reference" (to get the bibtex label), "doi" and "version".
 
-    get_tracking_id_from_path
-        Function which, given a path outputs the tracking ID
-
     multi_dataset_handling
         What to do in the case that the tracking ID belongs to multiple datasets
         i.e. is associated with more than one PID.
+
+    server_url
+        URL of the server to use for searching pids and retrieve the information for
+          the citations.
+        CMIP6 defaults to https://hdl.handle.net.
+        CMIP7 defaults to https://transaction.east.esgf.io.
 
     """
     columns_title = [
@@ -865,7 +858,10 @@ def get_latex_table(
 
     in_attrs = [
         get_info_from_STAC(
-            v, attrs_col, get_tracking_id_from_path, multi_dataset_handling
+            v,
+            properties=attrs_col,
+            multi_dataset_handling=multi_dataset_handling,
+            server_url=server_url,
         )
         for v in ids_or_paths
     ]
@@ -896,7 +892,6 @@ def get_latex_table(
 def translate_get_args_to_get_citations_kwargs(
     format: FormatOption,
     author_list_style: AuthorListStyle,
-    handle_server_url: str | None = None,
 ) -> dict[str, Any]:
     """
     Translate the arguments of [(m).get][] to arguments needed by [(m).get_citations][]
@@ -915,9 +910,6 @@ def translate_get_args_to_get_citations_kwargs(
         Whether, if the format is text,
         the author list should be long (all names) or short (et al.)
 
-    handle_server_url
-        URL of the server to use for handling tracking IDs i.e. handles
-
 
     Returns
     -------
@@ -935,14 +927,8 @@ def translate_get_args_to_get_citations_kwargs(
     else:  # pragma: no cover
         raise NotImplementedError(FormatOption)
 
-    if handle_server_url is None:
-        CMIP6client = None
-    else:
-        CMIP6client = RESTHandleClient(handle_server_url=handle_server_url)
-
     return dict(
         get_citation=get_citation,
-        CMIP6client=CMIP6client,
     )
 
 
@@ -964,7 +950,7 @@ def get(  # noqa: PLR0913
     table_columns: list[str] | None = TABLE_COLUMNS_DEFAULT,
     doi_granularity: DOIGranularity | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
-    handle_server_url: str | None = None,
+    server_url: str | None = None,
 ) -> list[str]:
     """
     Get citations without duplicates from CMIP files or tracking IDs or PIDs
@@ -1002,11 +988,11 @@ def get(  # noqa: PLR0913
           previous dataset PID (if it exists) if the current one does not have a DOI.
         See [DatasetPIDLookupStrategy][(m).] for details.
 
-    handle_server_url
-        Only valid for CMIP6 data (where it defaults to https://hdl.handle.net).
-        URL of the server to use for handling tracking IDs i.e. handles
-        If not supplied, a new client with a default handle server URL
-        is instantiated.
+    server_url
+        URL of the server to use for searching pids and retrieve the information for
+          the citations.
+        CMIP6 defaults to https://hdl.handle.net.
+        CMIP7 defaults to https://transaction.east.esgf.io.
 
     Returns
     -------
@@ -1032,8 +1018,7 @@ def get(  # noqa: PLR0913
             ids_or_paths=in_values,
             table_columns=table_columns,
             multi_dataset_handling=multi_dataset_handling,
-            doi_granularity=doi_granularity,
-            dataset_pid_lookup=dataset_pid_lookup,
+            server_url=server_url,
         )
         return table
 
@@ -1041,13 +1026,13 @@ def get(  # noqa: PLR0913
         get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
             format=format,
             author_list_style=author_list_style,
-            handle_server_url=handle_server_url,
         )
 
         try:
             citations = get_citations(
                 ids_or_paths=in_values,
                 multi_dataset_handling=multi_dataset_handling,
+                server_url=server_url,
                 doi_granularity=doi_granularity,
                 dataset_pid_lookup=dataset_pid_lookup,
                 **get_citations_kwargs,
