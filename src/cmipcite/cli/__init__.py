@@ -12,9 +12,11 @@ import typer
 import cmipcite
 from cmipcite.citations import (
     AuthorListStyle,
+    DatasetPIDLookupStrategy,
     DOIGranularity,
     FormatOption,
     get_citations,
+    get_latex_table,
     translate_get_args_to_get_citations_kwargs,
 )
 from cmipcite.tracking_id import (
@@ -76,58 +78,103 @@ def get(  # noqa: PLR0913
         ),
     ] = AuthorListStyle.LONG,
     doi_granularity: Annotated[
-        DOIGranularity,
-        typer.Option(help="Desired granularity of the retrieved DOIs."),
-    ] = DOIGranularity.MODEL,
+        Optional[DOIGranularity],
+        typer.Option(
+            help="Only valid for CMIP6 data (where it defaults to experiment). "
+            "Desired granularity of the retrieved DOIs. "
+            ""
+        ),
+    ] = None,
     multi_dataset_handling: Annotated[
         Optional[MultiDatasetHandlingStrategy],
         typer.Option(
             help="Strategy to use when a given ID or file belongs to multiple datasets."
         ),
     ] = None,
-    handle_server_url: Annotated[
-        str,
+    server_url: Annotated[
+        Optional[str],
         typer.Option(
-            help="URL of the server to use for handling tracking IDs i.e. handles"
+            help="URL of the server to use for searching pids and retrieve the "
+            "information for the citations."
+            "CMIP6 defaults to https://hdl.handle.net."
+            "CMIP7 defaults to https://transaction.east.esgf.io."
         ),
-    ] = "http://hdl.handle.net/",
+    ] = None,
+    dataset_pid_lookup: Annotated[
+        Optional[DatasetPIDLookupStrategy],
+        typer.Option(
+            help="Only valid for CMIP6 data (where it defaults to allow previous). "
+            "Whether to only look at the current dataset PID or allow looking at "
+            "the previous dataset PID (if it exists)"
+            " if the current one does not have a DOI."
+        ),
+    ] = None,
+    table_columns: Annotated[
+        list[str],
+        typer.Option(
+            help="Only valid for LaTeX table format. List of columns to include in"
+            " the table."
+        ),
+    ] = [
+        "source_id",
+        "institution_id",
+        "experiment_id",
+        "variable_id",
+        "version",
+        "reference",
+    ],
 ) -> None:
     """
     Generate citations from CMIP files or tracking IDs or PIDs
     """
-    get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
-        format=format,
-        author_list_style=author_list_style,
-        handle_server_url=handle_server_url,
-    )
-
-    try:
-        citations = get_citations(
+    if format == FormatOption.LATEXTABLE:
+        text = get_latex_table(
             ids_or_paths=in_values,
-            doi_granularity=doi_granularity,
+            table_columns=table_columns,
             multi_dataset_handling=multi_dataset_handling,
-            **get_citations_kwargs,
+            server_url=server_url,
         )
 
-    except MultipleDatasetMemberError as exc:
-        msg = (
-            "One of your input values is a member of more than one dataset. "
-            "You can resolve this by passing a value for the "
-            "`--multi-dataset-handling` option. "
-            "In most cases, passing `--multi-dataset-handling latest` "
-            "is what you will want "
-            "(this will give you the reference to the last published dataset "
-            "that includes your ID)"
-        )
-        raise ValueError(msg) from exc
-
-    text = "\n\n".join(citations)
-
-    if out_path is None:
-        print(text)
+        if out_path is None:
+            print(text)
+        else:
+            with open(out_path, "w") as fh:
+                fh.write(text)
     else:
-        with open(out_path, "w") as fh:
-            fh.write(text)
+        get_citations_kwargs = translate_get_args_to_get_citations_kwargs(
+            format=format,
+            author_list_style=author_list_style,
+        )
+
+        try:
+            citations = get_citations(
+                ids_or_paths=in_values,
+                doi_granularity=doi_granularity,
+                multi_dataset_handling=multi_dataset_handling,
+                dataset_pid_lookup=dataset_pid_lookup,
+                server_url=server_url,
+                **get_citations_kwargs,
+            )
+
+        except MultipleDatasetMemberError as exc:
+            msg = (
+                "One of your input values is a member of more than one dataset. "
+                "You can resolve this by passing a value for the "
+                "`--multi-dataset-handling` option. "
+                "In most cases, passing `--multi-dataset-handling latest` "
+                "is what you will want "
+                "(this will give you the reference to the last published dataset "
+                "that includes your ID)"
+            )
+            raise ValueError(msg) from exc
+
+        text = "\n\n".join(citations)
+
+        if out_path is None:
+            print(text)
+        else:
+            with open(out_path, "w") as fh:
+                fh.write(text)
 
 
 if __name__ == "__main__":  # pragma: no cover

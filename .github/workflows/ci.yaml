@@ -66,7 +66,7 @@ jobs:
         with:
           # Exclude local links
           # and the template link in pyproject.toml
-          args: "--exclude 'file://' --exclude '^https://github\\.com/WCRP-CMIP/cmipcite/pull/\\{issue\\}$' ."
+          args: "--exclude 'file://' --exclude '^https://github\\.com/WCRP-CMIP/cmipcite/pull/\\{issue\\}$' --exclude ',/n$' ."
 
   tests:
     strategy:

@@ -38,6 +38,13 @@ def test_handle_path_equivalence(test_data_dir):
 
     assert out_id == out_path
 
+    out_id7 = get(
+        ["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"],
+    )
+    out_path7 = get([test_data_dir / "fake_CMIP7.nc"])
+
+    assert out_id7 == out_path7
+
 
 def test_id_with_no_doi():
     with pytest.raises(
@@ -76,3 +83,34 @@ def test_id_doi_in_old_pid():
             multi_dataset_handling="latest",
             dataset_pid_lookup="current_only",
         )
+
+
+def test_warnings_CMIP7():
+    out = get(["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"])
+
+    with pytest.warns(
+        UserWarning,
+        match=re.escape(
+            "dataset_pid_lookup is not used for CMIP7. "
+            " Ignoring the dataset_pid_lookup parameter.",
+        ),
+    ):
+        out1 = get(
+            ["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"],
+            dataset_pid_lookup="allow_previous",
+        )
+    assert out == out1
+
+    with pytest.warns(
+        UserWarning,
+        match=re.escape(
+            "doi_granularity is not used for CMIP7. "
+            "All dois are at the experiment level."
+            " Ignoring the doi_granularity parameter.",
+        ),
+    ):
+        out2 = get(
+            ["hdl:21.14107/eee87809-8c47-4b80-9104-fdd5ee85c8c4"],
+            doi_granularity="model",
+        )
+    assert out == out2

@@ -79,20 +79,21 @@ print(citations[0])
 
 
 # %% [markdown]
-# There are multiple possibilities for the retrieved DOI.
+# For CMIP6, there are multiple possibilities for the retrieved DOI.
 # These vary based on the granularity of the DOI.
-# At the moment, as far as we know, there are two granularities:
+# There are two granularities:
 #     * model (capturing all submissions to a given MIP by a given model)
 #        * DRS: `<mip_era>/<activity_id>/<institution_id>/<source_id>`
 #     * experiment (capturing all submissions to a given MIP by a given model for a
 #     given experiment.
 #        * DRS: `<mip_era>/<activity_id>/<institution_id>/<source_id>/<experiment_id>`
 # This is controlled by `doi_granularity`.
+# For CMIP7, only the experiment granularity is available.
 
 # %%
 citations = get(
     ["hdl:21.14100/90f93a05-357c-4ea2-b61f-bf2418700791"],
-    doi_granularity="experiment",
+    doi_granularity="model",
 )
 print(citations[0])
 
