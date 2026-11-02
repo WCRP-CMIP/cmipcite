@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import httpx
-import requests
+import requests  # type: ignore
 from pyhandle.handleclient import RESTHandleClient  # type: ignore
 
 from cmipcite.exceptions import MissingOptionalDependencyError
@@ -239,7 +239,7 @@ def get_tracking_id_from_cmip_netcdf(nc_path: Path) -> str:
 def get_mip_era(
     in_value: str,
     get_tracking_id_from_path: Callable[[Path], str] = get_tracking_id_from_cmip_netcdf,
-):
+) -> str:
     """
     Get the mip_era for a given ID or path to a netCDF file
 
@@ -500,7 +500,10 @@ def get_info_from_STAC(
     STACdata = r.json()
 
     STACfeatures = _get_right_STACfeature(
-        in_value, STACdata=STACdata, multi_dataset_handling=multi_dataset_handling
+        in_value,
+        STACdata=STACdata,
+        multi_dataset_handling=multi_dataset_handling,
+        mip_era=mip_era,
     )
 
     info = {}
@@ -521,10 +524,15 @@ def get_info_from_STAC(
     return info
 
 
-def _get_right_STACfeature(in_value, STACdata, multi_dataset_handling):
+def _get_right_STACfeature(
+    in_value: str,
+    STACdata: dict[str, Any],
+    multi_dataset_handling: MultiDatasetHandlingStrategy | None,
+    mip_era: str,
+) -> Any:
     """Choose the right STAC feature based on the multi_dataset_handling strategy."""
     if len(STACdata["features"]) == 0:
-        message = f"No CMIP7 dataset found for {in_value}"
+        message = f"No dataset found for {in_value} in the STAC API"
         raise ValueError(message)
     elif len(STACdata["features"]) == 1:
         STACfeatures = STACdata["features"][0]
@@ -536,10 +544,13 @@ def _get_right_STACfeature(in_value, STACdata, multi_dataset_handling):
         )
 
         versions = [int(f["properties"]["version"]) for f in STACdata["features"]]
-
         if multi_dataset_handling is None:
+            version_pids = {
+                f["properties"]["version"]: f["properties"][f"{mip_era.lower()}:pid"]
+                for f in STACdata["features"]
+            }
             raise MultipleDatasetMemberError(
-                tracking_id=in_value, version_pids=versions
+                tracking_id=in_value, version_pids=version_pids
             )
 
         if multi_dataset_handling == MultiDatasetHandlingStrategy.LATEST:
@@ -553,7 +564,7 @@ def _get_right_STACfeature(in_value, STACdata, multi_dataset_handling):
     return STACfeatures
 
 
-def _get_doi_from_STACfeatures(in_value, STACfeatures):
+def _get_doi_from_STACfeatures(in_value: str, STACfeatures: dict[str, Any]) -> str:
     """Extract the DOI from the STAC features and Citation Service."""
     # get the citation service url from STAC
     # and  get the doi_urlfrom the the citation service
@@ -572,12 +583,12 @@ def _get_doi_from_STACfeatures(in_value, STACfeatures):
     responsecitation.raise_for_status()
     CITEdata = responsecitation.json()
 
-    doi = CITEdata["doi_url"]
+    doi = str(CITEdata["doi_url"])
     doi = doi.replace("https://doi.org/", "").upper()
     return doi
 
 
-def get_doi_and_version(  # type: ignore
+def get_doi_and_version(
     in_value: str,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     doi_granularity: DOIGranularity | None = None,
@@ -662,7 +673,7 @@ def get_doi_and_version(  # type: ignore
     return (doi, version)
 
 
-def get_citations(  # type: ignore # noqa: PLR0913
+def get_citations(  # noqa: PLR0913
     ids_or_paths: list[str],
     get_citation: Callable[[str, str], str],
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
@@ -797,10 +808,20 @@ def get_citations(  # type: ignore # noqa: PLR0913
     return res
 
 
+TABLE_COLUMNS_DEFAULT = [
+    "source_id",
+    "institution_id",
+    "experiment_id",
+    "variable_id",
+    "version",
+    "reference",
+]
+
+
 # TODO: do other formats also, md ?
 def get_latex_table(
     ids_or_paths: list[str],
-    table_columns: list[str] | None = None,
+    table_columns: list[str] = TABLE_COLUMNS_DEFAULT,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
     server_url: str | None = None,
 ) -> str:
@@ -877,10 +898,10 @@ def get_latex_table(
     combined_tuple = [tuple(d[k] for k in table_columns) for d in combined]
 
     # only keep unique rows
-    combined_tuple = set(combined_tuple)
+    unique_combined_tuple = set(combined_tuple)
 
     # build table
-    for row in combined_tuple:
+    for row in unique_combined_tuple:
         table += " & ".join(row)
         table += " \\\\\n"
     table += "\\end{tabular}\n\\end{center}"
@@ -931,26 +952,16 @@ def translate_get_args_to_get_citations_kwargs(
     )
 
 
-TABLE_COLUMNS_DEFAULT = [
-    "source_id",
-    "institution_id",
-    "experiment_id",
-    "variable_id",
-    "version",
-    "reference",
-]
-
-
 def get(  # noqa: PLR0913
     in_values: list[str],
     format: FormatOption = FormatOption.TEXT,
     author_list_style: AuthorListStyle = AuthorListStyle.LONG,
     multi_dataset_handling: MultiDatasetHandlingStrategy | None = None,
-    table_columns: list[str] | None = TABLE_COLUMNS_DEFAULT,
+    table_columns: list[str] = TABLE_COLUMNS_DEFAULT,
     doi_granularity: DOIGranularity | None = None,
     dataset_pid_lookup: DatasetPIDLookupStrategy | None = None,
     server_url: str | None = None,
-) -> list[str]:
+) -> list[str] | str:
     """
     Get citations without duplicates from CMIP files or tracking IDs or PIDs
 

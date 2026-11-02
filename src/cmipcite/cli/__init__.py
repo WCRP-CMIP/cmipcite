@@ -78,7 +78,7 @@ def get(  # noqa: PLR0913
         ),
     ] = AuthorListStyle.LONG,
     doi_granularity: Annotated[
-        DOIGranularity,
+        Optional[DOIGranularity],
         typer.Option(
             help="Only valid for CMIP6 data (where it defaults to experiment). "
             "Desired granularity of the retrieved DOIs. "
