@@ -28,7 +28,11 @@ runner = CliRunner()
         pytest.param(
             "tmp.bib", "bibtex", "short", "experiment", None, id="bib-short-exp"
         ),
+        pytest.param("tmp2.bib", "bibtex", "long", "model", None, id="bib-long-bib"),
         pytest.param("tmp.txt", "text", "long", "model", None, id="text-long-model"),
+        pytest.param(
+            "tmp2.txt", "text", "short", "experiment", None, id="text-short-exp"
+        ),
         pytest.param("table.txt", "latextable", None, None, None, id="table-default"),
         pytest.param(
             "table2.txt",
@@ -69,11 +73,12 @@ def test_citations_args(  # noqa: PLR0913
         for x in table_columns:
             args.extend(["--table-columns", x])
 
-    if "hdl:21.14100" in in_values and out_format == "latextable":
-        pytest.skip("Latex table output is not ready for CMIP6 datasets")
-    else:
-        result = runner.invoke(app, args)
+    result = runner.invoke(app, args)
 
+    if "hdl:21.14100" in in_values and out_format == "latextable":
+        assert result.exit_code != 0
+        assert isinstance(result.exception, NotImplementedError)
+    else:
         assert result.exit_code == 0, result.stdout
 
         if out_path is None:
